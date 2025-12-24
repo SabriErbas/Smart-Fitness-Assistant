@@ -7,9 +7,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-//import androidx.compose.material.icons.filled.CameraAlt
-//import androidx.compose.material.icons.filled.ChevronRight
-//import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -20,44 +17,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.gymapp002.ui.AppViewModelProvider
+// Veritabanı tablosunu import ediyoruz
+import com.example.gymapp002.models.Exercise
 
-// Mock Data Class
-data class ExerciseItem(
-    val id: Int,
-    val name: String,
-    val muscleGroup: String,
-    val difficulty: String // Beginner, Intermediate, Advanced
-)
 
 @Composable
-fun SearchScreen() {
-    // Arama metni durumu
-    var searchQuery by remember { mutableStateOf("") }
-
-    // Mock Data - 10 Egzersiz
-    val allExercises = remember {
-        listOf(
-            ExerciseItem(1, "Arnold Press", "Omuz", "Intermediate"),
-            ExerciseItem(2, "Barbell Squat", "Bacak", "Advanced"),
-            ExerciseItem(3, "Bench Press", "Göğüs", "Intermediate"),
-            ExerciseItem(4, "Deadlift", "Sırt/Bacak", "Advanced"),
-            ExerciseItem(5, "Dumbbell Curl", "Pazı (Biceps)", "Beginner"),
-            ExerciseItem(6, "Face Pull", "Arka Omuz", "Intermediate"),
-            ExerciseItem(7, "Lat Pulldown", "Sırt", "Beginner"),
-            ExerciseItem(8, "Leg Extension", "Ön Bacak", "Beginner"),
-            ExerciseItem(9, "Plank", "Karın (Core)", "Beginner"),
-            ExerciseItem(10, "Triceps Pushdown", "Arka Kol", "Beginner")
-        )
-    }
-
-    // Arama ve Sıralama Mantığı
-    val filteredExercises = allExercises
-        .filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.muscleGroup.contains(searchQuery, ignoreCase = true)
-        }
-        .sortedBy { it.name } // Alfabetik Sıralama
+fun SearchScreen(
+    viewModel: SearchViewModel = viewModel(factory = AppViewModelProvider.Factory)
+) {
+    // ViewModel'den gelen CANLI verileri dinliyoruz
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val exerciseList by viewModel.exerciseList.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background // BlackBackground
@@ -80,18 +52,21 @@ fun SearchScreen() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 2. ARAMA ÇUBUĞU (KAMERA İKONLU)
+            // 2. ARAMA ÇUBUĞU
             SearchBarWithCamera(
                 query = searchQuery,
-                onQueryChange = { searchQuery = it },
+                onQueryChange = { newText ->
+                    // Kritik Nokta: Her harf yazıldığında ViewModel'e haber veriyoruz
+                    viewModel.onSearchQueryChanged(newText)
+                },
                 onCameraClick = { /* İleride Makine Tanıma sistemini buraya bağlayacağız */ }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 3. EGZERSİZ LİSTESİ
+            // 3. EGZERSİZ LİSTESİ (Veritabanından Gelen)
             Text(
-                text = "Tüm Egzersizler (${filteredExercises.size})",
+                text = "Tüm Egzersizler (${exerciseList.size})",
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.Gray,
                 modifier = Modifier.padding(bottom = 12.dp)
@@ -101,7 +76,8 @@ fun SearchScreen() {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)
             ) {
-                items(filteredExercises) { exercise ->
+                // Mock liste yerine artık gerçek 'exerciseList' kullanıyoruz
+                items(exerciseList) { exercise ->
                     ExerciseRowCard(exercise)
                 }
             }
@@ -141,12 +117,11 @@ fun SearchBarWithCamera(
             )
         },
         trailingIcon = {
-            // KAMERA BUTONU - AI TARAMA
             IconButton(onClick = onCameraClick) {
                 Icon(
                     imageVector = Icons.Default.Star,
                     contentDescription = "AI Camera Scan",
-                    tint = MaterialTheme.colorScheme.primary // ASİT YEŞİLİ (Dikkat çeksin diye)
+                    tint = MaterialTheme.colorScheme.primary // ASİT YEŞİLİ
                 )
             }
         }
@@ -154,14 +129,14 @@ fun SearchBarWithCamera(
 }
 
 @Composable
-fun ExerciseRowCard(exercise: ExerciseItem) {
+fun ExerciseRowCard(exercise: Exercise) { // Artık Exercise alıyor
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { /* Egzersiz detayına git */ },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface // DarkSurface (#232A2E)
+            containerColor = MaterialTheme.colorScheme.surface // DarkSurface
         )
     ) {
         Row(
@@ -190,28 +165,27 @@ fun ExerciseRowCard(exercise: ExerciseItem) {
             // Egzersiz Bilgileri
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = exercise.name,
+                    text = exercise.name, // Entity'den gelen isim
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = exercise.muscleGroup,
+                        text = exercise.muscleGroup, // Entity'den gelen kas grubu
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary // Kas grubu Yeşil olsun
                     )
                     Text(
-                        text = " • ${exercise.difficulty}",
+                        text = " • ${exercise.difficulty}", // Entity'den gelen zorluk
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
                 }
             }
 
-            // Sağ Ok İkonu
+            // Sağ İkon
             Icon(
-                /*bu icon zaman içinde değişecek şimdilik bu şekilde*/
                 imageVector = Icons.Default.Star,
                 contentDescription = "Detail",
                 tint = Color.Gray
