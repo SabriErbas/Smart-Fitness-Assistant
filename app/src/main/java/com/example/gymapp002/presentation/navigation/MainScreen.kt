@@ -31,6 +31,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.gymapp002.presentation.navigation.NavItem
 import com.example.gymapp002.ui.screens.HomeScreen
 import com.example.gymapp002.ui.screens.ProfileScreen
+import com.example.gymapp002.ui.screens.SearchScreen
 import com.example.gymapp002.ui.screens.WorkoutScreen
 import com.example.gymapp002.ui.theme.MainColorScheme
 
@@ -91,7 +92,8 @@ fun ContetScreen(modifier: Modifier = Modifier, selectedIndex: Int){
              }
         1 -> { WorkoutScreen()
              }
-        2 -> {//ScanScreen()
+        2 -> {
+            SearchScreen()
              }
         3 -> { ProfileScreen() }
     }
