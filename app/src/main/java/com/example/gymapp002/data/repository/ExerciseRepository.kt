@@ -1,8 +1,8 @@
 package com.example.gymapp002.data.repository
 
 
+import com.example.gymapp002.data.local.entity.Exercise
 import com.example.gymapp002.db.ExerciseDAO
-import com.example.gymapp002.models.Exercise
 import kotlinx.coroutines.flow.Flow
 
 class ExerciseRepository(private val exerciseDao: ExerciseDAO) {

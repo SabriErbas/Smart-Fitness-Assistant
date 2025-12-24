@@ -1,4 +1,4 @@
-package com.example.gymapp002.models
+package com.example.gymapp002.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -8,11 +8,11 @@ import androidx.room.PrimaryKey
 
 data class Exercise(
     @PrimaryKey(autoGenerate = true)
-    var id: Int,
+    var exerciseId: Int,
     val name: String,
     val muscleGroup: String,
     val category: String,
-    val difficulty: String?,
+    val difficulty: String,
     val recipe: String?,
     val description: String?,
     val desURL: String?,

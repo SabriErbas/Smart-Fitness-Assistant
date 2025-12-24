@@ -3,12 +3,12 @@ package com.example.gymapp002.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gymapp002.data.repository.ExerciseRepository
-import com.example.gymapp002.models.Exercise
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import com.example.gymapp002.data.local.entity.Exercise
 
 class SearchViewModel(private val repository: ExerciseRepository) : ViewModel() {
 

@@ -5,7 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.example.gymapp002.models.Exercise
+import com.example.gymapp002.data.local.entity.Exercise
 import kotlinx.coroutines.flow.Flow
 
 @Dao
