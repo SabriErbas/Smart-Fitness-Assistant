@@ -1,6 +1,7 @@
 package com.example.gymapp002.ui
 
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -10,6 +11,7 @@ import com.example.gymapp002.data.repository.ExerciseRepository
 import com.example.gymapp002.data.repository.WorkoutRepository
 import com.example.gymapp002.ui.screens.CreateWorkoutViewModel
 import com.example.gymapp002.ui.screens.SearchViewModel
+import com.example.gymapp002.ui.screens.WorkoutDetailViewModel
 import com.example.gymapp002.ui.screens.WorkoutViewModel
 
 object AppViewModelProvider {
@@ -37,6 +39,15 @@ object AppViewModelProvider {
         initializer {
             val app = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
             WorkoutViewModel(
+                workoutRepository = WorkoutRepository(app.database.workoutDao())
+            )
+        }
+
+        // 4. WorkoutDetailViewModel (YENİ)
+        initializer {
+            val app = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
+            WorkoutDetailViewModel(
+                savedStateHandle = this.createSavedStateHandle(), // Adresteki ID'yi yakalamak için şart
                 workoutRepository = WorkoutRepository(app.database.workoutDao())
             )
         }

@@ -15,15 +15,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.gymapp002.ui.navigation.Screen
 import com.example.gymapp002.ui.screens.CreateWorkoutScreen
 import com.example.gymapp002.ui.screens.HomeScreen
 import com.example.gymapp002.ui.screens.ProfileScreen
 import com.example.gymapp002.ui.screens.SearchScreen
+import com.example.gymapp002.ui.screens.WorkoutDetailScreen
 import com.example.gymapp002.ui.screens.WorkoutScreen
 import com.example.gymapp002.ui.theme.MainColorScheme
 
@@ -93,11 +96,24 @@ fun MainScreen(modifier: Modifier = Modifier) {
             // 1. HOME
             composable(Screen.Home.route) { HomeScreen() }
 
+//            // 2. WORKOUT
+//            composable(Screen.Workout.route) {
+//                WorkoutScreen(
+//                    onNavigateToCreateWorkout = {
+//                        navController.navigate(Screen.CreateWorkout.route)
+//                    }
+//                )
+//            }
+
             // 2. WORKOUT
             composable(Screen.Workout.route) {
                 WorkoutScreen(
                     onNavigateToCreateWorkout = {
                         navController.navigate(Screen.CreateWorkout.route)
+                    },
+                    onNavigateToDetail = { workoutId ->
+                        // Detay sayfasına ID ile git: "workout_detail/5"
+                        navController.navigate("workout_detail/$workoutId")
                     }
                 )
             }
@@ -113,6 +129,18 @@ fun MainScreen(modifier: Modifier = Modifier) {
                 CreateWorkoutScreen(
                     onBackClick = { navController.popBackStack() },
                     onSaveClick = { navController.popBackStack() }
+                )
+            }
+
+            // 6. WORKOUT DETAIL (ID Parametreli Ekran)
+            composable(
+                route = Screen.WorkoutDetail.route, // "workout_detail/{workoutId}"
+                arguments = listOf(
+                    navArgument("workoutId") { type = NavType.IntType }
+                )
+            ) {
+                WorkoutDetailScreen(
+                    onBackClick = { navController.popBackStack() }
                 )
             }
         }

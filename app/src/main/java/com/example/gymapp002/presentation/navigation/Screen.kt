@@ -60,4 +60,12 @@ sealed class Screen(
         selectedIcon = Icons.Filled.Add,
         unselectedIcon = Icons.Filled.Add
     )
+
+    // {workoutId} kısmı bir değişkendir. Buraya ID gelecek.
+    object WorkoutDetail : Screen(
+        route = "workout_detail/{workoutId}",
+        title = "Workout Detail",
+        selectedIcon = Icons.Filled.DateRange, // İkonlar çok önemli değil burada
+        unselectedIcon = Icons.Filled.DateRange
+    )
 }

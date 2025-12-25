@@ -6,10 +6,18 @@ import com.example.gymapp002.data.local.entity.WorkoutExerciseCrossRef
 import com.example.gymapp002.data.local.entity.WorkoutWithExercises
 import kotlinx.coroutines.flow.Flow
 
+
 class WorkoutRepository(private val workoutDao: WorkoutDao) {
 
     // Antrenmanları ve içeriklerini getir
     val allWorkouts: Flow<List<WorkoutWithExercises>> = workoutDao.getWorkoutsWithExercises()
+
+
+    // --- YENİ EKLENEN FONKSİYON ---
+    fun getWorkoutById(id: Int): Flow<WorkoutWithExercises> {
+        return workoutDao.getWorkoutWithExercisesById(id)
+    }
+    // -----------------------------
 
     // Yeni antrenman kaydet
     // Adım 1: Antrenman ismini kaydet -> ID al

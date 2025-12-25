@@ -45,12 +45,12 @@ data class MockWorkoutProgram(
 @Composable
 fun WorkoutScreen(
     onNavigateToCreateWorkout: () -> Unit,
+    onNavigateToDetail: (Int) -> Unit, // ID ile detay sayfasına gitme görevi
     viewModel: WorkoutViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("PLAN", "ANTRENMAN")
 
-    // ViewModel'den verileri dinle
     val selectedDate by viewModel.selectedDate.collectAsState()
     val dailyPlan by viewModel.dailyPlan.collectAsState()
 
@@ -62,7 +62,6 @@ fun WorkoutScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // HATA VEREN KISIM BURASIYDI (Artık aşağıda tanımlı)
             CustomTabRow(
                 tabs = tabs,
                 selectedTabIndex = selectedTabIndex,
@@ -74,9 +73,10 @@ fun WorkoutScreen(
                     selectedDate = selectedDate,
                     dailyPlan = dailyPlan,
                     onDateSelected = { viewModel.onDateSelected(it) },
-                    onCreateClick = onNavigateToCreateWorkout
+                    onCreateClick = onNavigateToCreateWorkout,
+                    onWorkoutClick = onNavigateToDetail // Tıklamayı aşağı aktarıyoruz
                 )
-                1 -> GeneralWorkoutList() // HATA VEREN DİĞER KISIM
+                1 -> GeneralWorkoutList()
             }
         }
     }
@@ -90,7 +90,8 @@ fun UserPlanSection(
     selectedDate: LocalDate,
     dailyPlan: List<WorkoutWithExercises>,
     onDateSelected: (LocalDate) -> Unit,
-    onCreateClick: () -> Unit
+    onCreateClick: () -> Unit,
+    onWorkoutClick: (Int) -> Unit // Kart tıklandığında çalışacak fonksiyon
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -122,7 +123,11 @@ fun UserPlanSection(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(dailyPlan) { item ->
-                    PlannedWorkoutCard(item)
+                    // GÜNCELLEME BURADA YAPILDI: ID GÖNDERİLİYOR
+                    PlannedWorkoutCard(
+                        item = item,
+                        onClick = { onWorkoutClick(item.workout.workoutId) }
+                    )
                 }
                 item {
                     Button(
@@ -169,9 +174,14 @@ fun EmptyPlanState(onCreateClick: () -> Unit) {
 }
 
 @Composable
-fun PlannedWorkoutCard(item: WorkoutWithExercises) {
+fun PlannedWorkoutCard(
+    item: WorkoutWithExercises,
+    onClick: () -> Unit // GÜNCELLEME: Tıklama parametresi eklendi
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }, // GÜNCELLEME: Modifier.clickable eklendi
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -207,7 +217,7 @@ fun PlannedWorkoutCard(item: WorkoutWithExercises) {
     }
 }
 
-// --- EKSİK OLAN PARÇALAR (ARTIK EKLENDİ) ---
+// --- DİĞER BİLEŞENLER ---
 
 @Composable
 fun CustomTabRow(
@@ -252,7 +262,6 @@ fun CustomTabRow(
 
 @Composable
 fun GeneralWorkoutList() {
-    // Mock Data (Görsel Doldurmak İçin)
     val programs = listOf(
         MockWorkoutProgram(
             title = "Tüm vücut antrenmanı",
@@ -320,7 +329,7 @@ fun WorkoutCard(program: MockWorkoutProgram) {
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.DateRange,
+                        imageVector = Icons.Default.DateRange, // Düzeltildi
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
