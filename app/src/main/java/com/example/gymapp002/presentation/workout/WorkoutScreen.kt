@@ -1,5 +1,7 @@
 package com.example.gymapp002.ui.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -8,7 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -18,14 +20,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+// Oluşturduğumuz Takvim bileşenini import ediyoruz
+import com.example.gymapp002.ui.components.WeekCalendar
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 // --- MOCK DATA (Veri Modelleri) ---
-// Gerçek projede bunları ayrı bir 'model' paketine taşıyabilirsin.
 data class Exercise(
     val name: String,
-    val detail: String, // "Dambıl", "Halter barı" vb.
-    val sets: String    // "4x8" veya "4x00:30"
+    val detail: String,
+    val sets: String
 )
 
 data class WorkoutProgram(
@@ -34,11 +39,15 @@ data class WorkoutProgram(
     val exercises: List<Exercise>
 )
 
+@RequiresApi(Build.VERSION_CODES.O) // LocalDate kullanımı için gerekli
 @Composable
 fun WorkoutScreen() {
-    // Sekme yönetimi için state
-    var selectedTabIndex by remember { mutableIntStateOf(1) } // Başlangıçta 1 (ANTRENMAN) açık olsun
+    // Sekme yönetimi
+    var selectedTabIndex by remember { mutableIntStateOf(0) } // Başlangıçta 0 (PLAN) açık olsun
     val tabs = listOf("PLAN", "ANTRENMAN")
+
+    // Tarih Yönetimi (Takvim için)
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background // BlackBackground
@@ -56,9 +65,11 @@ fun WorkoutScreen() {
             )
 
             // 2. İÇERİK ALANI
-            // Seçilen sekmeye göre içeriği değiştiriyoruz
             when (selectedTabIndex) {
-                0 -> UserPlanSection()     // Sol Sekme: Kullanıcının Planı
+                0 -> UserPlanSection(
+                    selectedDate = selectedDate,
+                    onDateSelected = { newDate -> selectedDate = newDate }
+                )
                 1 -> GeneralWorkoutList()  // Sağ Sekme: Genel Antrenmanlar
             }
         }
@@ -66,6 +77,82 @@ fun WorkoutScreen() {
 }
 
 // --- BİLEŞENLER (COMPONENTS) ---
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun UserPlanSection(
+    selectedDate: LocalDate,
+    onDateSelected: (LocalDate) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --- 1. TAKVİM BİLEŞENİ (En Tepede) ---
+        WeekCalendar(
+            selectedDate = selectedDate,
+            onDateSelected = onDateSelected
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Divider(color = Color.DarkGray, thickness = 0.5.dp)
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // --- 2. GÜNLÜK PLAN İÇERİĞİ ---
+        // Burada seçilen tarihe göre veritabanından veri çekeceğiz.
+        // Şimdilik boş durum (Empty State) gösteriyoruz.
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f), // Kalan alanı doldur
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Tarihi güzel formatla gösterelim (Örn: 25 December)
+            val formatter = DateTimeFormatter.ofPattern("dd MMMM", Locale.getDefault())
+            val dateString = selectedDate.format(formatter)
+
+            Icon(
+                imageVector = Icons.Default.DateRange,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = Color.Gray
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "$dateString Planı",
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Bu tarih için planlanmış bir antrenman yok.",
+                color = Color.Gray
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // "Antrenman Ekle" Butonu (Kullanıcıyı teşvik etmek için)
+            Button(
+                onClick = { /* CreateWorkoutScreen'e git */ },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary
+                ),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+            ) {
+                Text(text = "+ Antrenman Ekle")
+            }
+        }
+    }
+}
 
 @Composable
 fun CustomTabRow(
@@ -76,16 +163,16 @@ fun CustomTabRow(
     TabRow(
         selectedTabIndex = selectedTabIndex,
         containerColor = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.primary, // Acid Lime
+        contentColor = MaterialTheme.colorScheme.primary,
         indicator = { tabPositions ->
             TabRowDefaults.Indicator(
                 modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                color = MaterialTheme.colorScheme.primary, // Çizgi Rengi: Yeşil
+                color = MaterialTheme.colorScheme.primary,
                 height = 3.dp
             )
         },
         divider = {
-            Divider(color = Color.DarkGray, thickness = 0.5.dp) // Alt çizgi
+            Divider(color = Color.DarkGray, thickness = 0.5.dp)
         }
     ) {
         tabs.forEachIndexed { index, title ->
@@ -98,9 +185,9 @@ fun CustomTabRow(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (selectedTabIndex == index)
-                            MaterialTheme.colorScheme.primary // Seçiliyse Yeşil
+                            MaterialTheme.colorScheme.primary
                         else
-                            Color.Gray // Değilse Gri
+                            Color.Gray
                     )
                 }
             )
@@ -110,7 +197,7 @@ fun CustomTabRow(
 
 @Composable
 fun GeneralWorkoutList() {
-    // Referans resimdeki verileri simüle ediyoruz
+    // Mock Data
     val programs = listOf(
         WorkoutProgram(
             title = "Tüm vücut antrenmanı",
@@ -138,15 +225,6 @@ fun GeneralWorkoutList() {
                 Exercise("Sırt Yan Kasları", "Kablo", "4x8"),
                 Exercise("Ölüm kaldırışı", "Halter barı", "4x8")
             )
-        ),
-        WorkoutProgram(
-            title = "Kol egzersizi",
-            subtitle = "6 egzersiz",
-            exercises = listOf(
-                Exercise("Pazı Bükme", "Halter barı", "4x8"),
-                Exercise("Üç Başlı Kas", "Kablo", "4x8"),
-                Exercise("Ters Bükme", "Halter barı", "4x8")
-            )
         )
     )
 
@@ -161,46 +239,17 @@ fun GeneralWorkoutList() {
 }
 
 @Composable
-fun UserPlanSection() {
-    // BURASI "PLAN" SEKMESİ (Sol Taraf)
-    // Şimdilik boş bir placeholder koyuyoruz, istersen burayı "Bugünün Antrenmanı" gibi doldurabiliriz.
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Star,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = Color.Gray
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Size Atanan Plan",
-            style = MaterialTheme.typography.titleLarge,
-            color = Color.White
-        )
-        Text(
-            text = "Henüz aktif bir antrenman programınız yok.",
-            color = Color.Gray
-        )
-    }
-}
-
-@Composable
 fun WorkoutCard(program: WorkoutProgram) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface // DarkSurface (#232A2E)
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // --- HEADER ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -219,9 +268,6 @@ fun WorkoutCard(program: WorkoutProgram) {
                         color = Color.Gray
                     )
                 }
-
-                // Kas Grubu Resmi (Placeholder)
-                // Gerçek resim için Image() kullanabilirsin. Şimdilik gri daire.
                 Box(
                     modifier = Modifier
                         .size(50.dp)
@@ -230,16 +276,15 @@ fun WorkoutCard(program: WorkoutProgram) {
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Star,
+                        imageVector = Icons.Default.DateRange,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary // Yeşil İkon
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- EGZERSİZ LİSTESİ ---
             program.exercises.forEach { exercise ->
                 Row(
                     modifier = Modifier
@@ -264,11 +309,10 @@ fun WorkoutCard(program: WorkoutProgram) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // --- FOOTER (Tümünü Göster) ---
             Text(
                 text = "Tümünü göster",
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary, // Acid Lime Rengi
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .align(Alignment.End)
                     .clickable { /* Detay sayfasına git */ }
