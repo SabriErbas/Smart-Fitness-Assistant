@@ -10,6 +10,7 @@ import com.example.gymapp002.data.repository.ExerciseRepository
 import com.example.gymapp002.data.repository.WorkoutRepository
 import com.example.gymapp002.ui.screens.CreateWorkoutViewModel
 import com.example.gymapp002.ui.screens.SearchViewModel
+import com.example.gymapp002.ui.screens.WorkoutViewModel
 
 object AppViewModelProvider {
     val Factory = viewModelFactory {
@@ -29,6 +30,14 @@ object AppViewModelProvider {
             CreateWorkoutViewModel(
                 exerciseRepository = ExerciseRepository(application.database.exerciseDao()),
                 workoutRepository = WorkoutRepository(application.database.workoutDao())
+            )
+        }
+
+        // 3. WorkoutViewModel (YENİ EKLENEN)
+        initializer {
+            val app = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
+            WorkoutViewModel(
+                workoutRepository = WorkoutRepository(app.database.workoutDao())
             )
         }
     }

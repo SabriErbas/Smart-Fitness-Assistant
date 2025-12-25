@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
-// Önceki adımlarda oluşturduğumuz sınıfları import ediyoruz
+// Importlar
 import com.example.gymapp002.data.local.entity.WorkoutEntity
 import com.example.gymapp002.data.local.entity.WorkoutExerciseCrossRef
 import com.example.gymapp002.data.local.dao.WorkoutDao
@@ -16,16 +16,17 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [
-        Exercise::class,            // 1. Mevcut Egzersiz Tablosu
-        WorkoutEntity::class,       // 2. YENİ: Antrenman Tablosu
-        WorkoutExerciseCrossRef::class // 3. YENİ: İlişki (Köprü) Tablosu
+        Exercise::class,
+        WorkoutEntity::class,
+        WorkoutExerciseCrossRef::class
     ],
-    version = 2 // Yapı değiştiği için versiyonu artırdık
+    version = 3, // DİKKAT: Versiyonu 2'den 3'e çektik!
+    exportSchema = false
 )
 abstract class GymDatabase : RoomDatabase() {
 
     abstract fun exerciseDao(): ExerciseDAO
-    abstract fun workoutDao(): WorkoutDao // YENİ: Antrenman DAO'su eklendi
+    abstract fun workoutDao(): WorkoutDao
 
     companion object {
         @Volatile
@@ -35,8 +36,7 @@ abstract class GymDatabase : RoomDatabase() {
             return Instance ?: synchronized(this) {
                 Room.databaseBuilder(context, GymDatabase::class.java, "gym_database")
                     .addCallback(DatabaseCallback())
-                    // Versiyon değiştiğinde (1 -> 2) eski veriyi silip tabloyu yeniden kurar.
-                    // Geliştirme aşamasında olduğumuz için bu yöntem en temizidir.
+                    // Versiyon 3 olduğu için eskiyi silip yenisini kuracak
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { Instance = it }
@@ -55,7 +55,7 @@ abstract class GymDatabase : RoomDatabase() {
         }
 
         suspend fun populateDatabase(exerciseDao: ExerciseDAO) {
-            // Başlangıç verileri (Senin listen korundu)
+            // Başlangıç verileri (Aynı kalıyor)
             val initialData = listOf(
                 // 1. Göğüs - Barbell
                 Exercise(

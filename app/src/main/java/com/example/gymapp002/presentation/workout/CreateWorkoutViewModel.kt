@@ -100,15 +100,24 @@ class CreateWorkoutViewModel(
         if (_workoutName.value.isBlank() || selectedExercises.isEmpty()) return
 
         viewModelScope.launch {
-            // ŞİMDİLİK: Schedule verilerini DB'ye henüz alan açmadığımız için
-            // sadece antrenmanı kaydediyoruz. Bir sonraki adımda DB'yi güncelleyince buraya ekleyeceğiz.
 
+            // 1. GÜNLERİ FORMATLA
+            // UI'dan gelen liste (Örn: [1, 3]) -> Veritabanı formatına ("1,3") çeviriyoruz
+            val daysString = selectedDays.sorted().joinToString(",")
+
+            // 2. ANTRENMANI OLUŞTUR
             val newWorkout = WorkoutEntity(
                 workoutName = _workoutName.value,
                 difficulty = "Custom",
-                duration = "${selectedExercises.size * 5} dk"
+                duration = "${selectedExercises.size * 5} dk",
+
+                // --- YENİ VERİLERİ EKLİYORUZ ---
+                scheduleType = _scheduleType.value.name, // "WEEKLY" veya "CYCLIC"
+                recurrenceDays = if (_scheduleType.value == ScheduleType.WEEKLY) daysString else "",
+                recurrenceGap = if (_scheduleType.value == ScheduleType.CYCLIC) (_cycleGap.value.toIntOrNull() ?: 0) else 0
             )
 
+            // 3. CROSS REF (Hareket İlişkileri) - Burası Aynı
             val crossRefs = selectedExercises.mapIndexed { index, item ->
                 WorkoutExerciseCrossRef(
                     workoutId = 0,
@@ -118,6 +127,8 @@ class CreateWorkoutViewModel(
                     order = index
                 )
             }
+
+            // 4. KAYDET
             workoutRepository.createWorkout(newWorkout, crossRefs)
             onSuccess()
         }
