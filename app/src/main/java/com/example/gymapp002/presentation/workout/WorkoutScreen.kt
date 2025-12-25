@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Add // İkon kullanımı için eklendi
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -39,9 +40,12 @@ data class WorkoutProgram(
     val exercises: List<Exercise>
 )
 
-@RequiresApi(Build.VERSION_CODES.O) // LocalDate kullanımı için gerekli
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun WorkoutScreen() {
+fun WorkoutScreen(
+    // DÜZELTME 1: Navigasyon parametresi buraya eklendi
+    onNavigateToCreateWorkout: () -> Unit
+) {
     // Sekme yönetimi
     var selectedTabIndex by remember { mutableIntStateOf(0) } // Başlangıçta 0 (PLAN) açık olsun
     val tabs = listOf("PLAN", "ANTRENMAN")
@@ -50,7 +54,9 @@ fun WorkoutScreen() {
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background // BlackBackground
+        containerColor = MaterialTheme.colorScheme.background,
+        // İstersen burada da genel bir FAB (Yuvarlak buton) kullanabilirsin
+        // ama senin tasarımında içeride buton var, onu kullanacağız.
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -68,7 +74,9 @@ fun WorkoutScreen() {
             when (selectedTabIndex) {
                 0 -> UserPlanSection(
                     selectedDate = selectedDate,
-                    onDateSelected = { newDate -> selectedDate = newDate }
+                    onDateSelected = { newDate -> selectedDate = newDate },
+                    // DÜZELTME 2: Parametre alt bileşene aktarıldı
+                    onNavigateToCreateWorkout = onNavigateToCreateWorkout
                 )
                 1 -> GeneralWorkoutList()  // Sağ Sekme: Genel Antrenmanlar
             }
@@ -82,7 +90,9 @@ fun WorkoutScreen() {
 @Composable
 fun UserPlanSection(
     selectedDate: LocalDate,
-    onDateSelected: (LocalDate) -> Unit
+    onDateSelected: (LocalDate) -> Unit,
+    // DÜZELTME 3: Parametre buraya da eklendi
+    onNavigateToCreateWorkout: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -100,17 +110,13 @@ fun UserPlanSection(
         Spacer(modifier = Modifier.height(24.dp))
 
         // --- 2. GÜNLÜK PLAN İÇERİĞİ ---
-        // Burada seçilen tarihe göre veritabanından veri çekeceğiz.
-        // Şimdilik boş durum (Empty State) gösteriyoruz.
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f), // Kalan alanı doldur
+                .weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Tarihi güzel formatla gösterelim (Örn: 25 December)
             val formatter = DateTimeFormatter.ofPattern("dd MMMM", Locale.getDefault())
             val dateString = selectedDate.format(formatter)
 
@@ -138,9 +144,10 @@ fun UserPlanSection(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // "Antrenman Ekle" Butonu (Kullanıcıyı teşvik etmek için)
+            // "Antrenman Ekle" Butonu
             Button(
-                onClick = { /* CreateWorkoutScreen'e git */ },
+                // DÜZELTME 4: Butona tıklandığında fonksiyon çalıştırılıyor
+                onClick = { onNavigateToCreateWorkout() },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.primary
@@ -148,7 +155,9 @@ fun UserPlanSection(
                 shape = RoundedCornerShape(12.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
             ) {
-                Text(text = "+ Antrenman Ekle")
+                Icon(imageVector = Icons.Default.Add, contentDescription = null) // İkon ekledim
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = "Antrenman Ekle")
             }
         }
     }

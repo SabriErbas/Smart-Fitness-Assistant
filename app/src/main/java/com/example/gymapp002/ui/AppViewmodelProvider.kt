@@ -6,18 +6,30 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.gymapp002.GymApplication
 import com.example.gymapp002.data.repository.ExerciseRepository
+// Aşağıdaki importları eklediğinden emin ol (Kırmızı yanarsa Alt+Enter yap)
+import com.example.gymapp002.data.repository.WorkoutRepository
+import com.example.gymapp002.ui.screens.CreateWorkoutViewModel
 import com.example.gymapp002.ui.screens.SearchViewModel
 
 object AppViewModelProvider {
     val Factory = viewModelFactory {
-        // SearchViewModel Nasıl Üretilir? Tarifi burada:
+
+        // 1. SearchViewModel Tarifi (Zaten Vardı)
         initializer {
-            // 1. Önce Application sınıfına eriş
             val application = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
-            // 2. Repository'yi oluştur
             val repository = ExerciseRepository(application.database.exerciseDao())
-            // 3. ViewModel'i repository ile başlat ve döndür
             SearchViewModel(repository)
+        }
+
+        // 2. CreateWorkoutViewModel Tarifi (EKSİK OLAN BUYDU! 👇)
+        initializer {
+            val application = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
+
+            // ViewModel iki tane Repository istiyor, onları hazırlayıp veriyoruz:
+            CreateWorkoutViewModel(
+                exerciseRepository = ExerciseRepository(application.database.exerciseDao()),
+                workoutRepository = WorkoutRepository(application.database.workoutDao())
+            )
         }
     }
 }
