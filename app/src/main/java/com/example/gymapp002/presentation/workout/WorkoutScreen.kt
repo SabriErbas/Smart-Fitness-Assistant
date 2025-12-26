@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -28,31 +29,22 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-// --- MOCK DATA (Genel Liste İçin Gerekli Sınıflar) ---
-data class MockExercise(
-    val name: String,
-    val detail: String,
-    val sets: String
-)
-
-data class MockWorkoutProgram(
-    val title: String,
-    val subtitle: String,
-    val exercises: List<MockExercise>
-)
+// --- NOT: Mock Data sınıflarını (MockExercise vb.) tamamen sildik! ---
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun WorkoutScreen(
     onNavigateToCreateWorkout: () -> Unit,
-    onNavigateToDetail: (Int) -> Unit, // ID ile detay sayfasına gitme görevi
+    onNavigateToDetail: (Int) -> Unit,
     viewModel: WorkoutViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("PLAN", "ANTRENMAN")
 
+    // ViewModel'den iki farklı listeyi dinliyoruz
     val selectedDate by viewModel.selectedDate.collectAsState()
-    val dailyPlan by viewModel.dailyPlan.collectAsState()
+    val dailyPlan by viewModel.dailyPlan.collectAsState()           // Filtrelenmiş (Takvim)
+    val libraryWorkouts by viewModel.libraryWorkouts.collectAsState() // Tümü (Kütüphane)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -74,15 +66,18 @@ fun WorkoutScreen(
                     dailyPlan = dailyPlan,
                     onDateSelected = { viewModel.onDateSelected(it) },
                     onCreateClick = onNavigateToCreateWorkout,
-                    onWorkoutClick = onNavigateToDetail // Tıklamayı aşağı aktarıyoruz
+                    onWorkoutClick = onNavigateToDetail
                 )
-                1 -> GeneralWorkoutList()
+                1 -> GeneralWorkoutList(
+                    workouts = libraryWorkouts, // Gerçek veriyi buraya paslıyoruz
+                    onWorkoutClick = onNavigateToDetail
+                )
             }
         }
     }
 }
 
-// --- PLAN SEKMESİ BİLEŞENLERİ ---
+// --- PLAN SEKMESİ BİLEŞENLERİ (Aynı kaldı) ---
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -91,7 +86,7 @@ fun UserPlanSection(
     dailyPlan: List<WorkoutWithExercises>,
     onDateSelected: (LocalDate) -> Unit,
     onCreateClick: () -> Unit,
-    onWorkoutClick: (Int) -> Unit // Kart tıklandığında çalışacak fonksiyon
+    onWorkoutClick: (Int) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -123,7 +118,6 @@ fun UserPlanSection(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(dailyPlan) { item ->
-                    // GÜNCELLEME BURADA YAPILDI: ID GÖNDERİLİYOR
                     PlannedWorkoutCard(
                         item = item,
                         onClick = { onWorkoutClick(item.workout.workoutId) }
@@ -176,12 +170,12 @@ fun EmptyPlanState(onCreateClick: () -> Unit) {
 @Composable
 fun PlannedWorkoutCard(
     item: WorkoutWithExercises,
-    onClick: () -> Unit // GÜNCELLEME: Tıklama parametresi eklendi
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }, // GÜNCELLEME: Modifier.clickable eklendi
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -260,41 +254,39 @@ fun CustomTabRow(
     }
 }
 
-@Composable
-fun GeneralWorkoutList() {
-    val programs = listOf(
-        MockWorkoutProgram(
-            title = "Tüm vücut antrenmanı",
-            subtitle = "7 egzersiz",
-            exercises = listOf(
-                MockExercise("Çiftçi Taşıması", "Dambıl", "4x00:30"),
-                MockExercise("Ölüm kaldırışı", "Halter barı", "4x8")
-            )
-        ),
-        MockWorkoutProgram(
-            title = "Göğüs antrenmanı",
-            subtitle = "5 egzersiz",
-            exercises = listOf(
-                MockExercise("Bench Press", "Halter", "4x8"),
-                MockExercise("Fly", "Kablo", "4x12")
-            )
-        )
-    )
+// --- GÜNCELLENEN KÜTÜPHANE LİSTESİ ---
 
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(programs) { program ->
-            WorkoutCard(program)
+@Composable
+fun GeneralWorkoutList(
+    workouts: List<WorkoutWithExercises>, // Artık gerçek veri alıyor
+    onWorkoutClick: (Int) -> Unit
+) {
+    if (workouts.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Henüz hiç antrenman oluşturulmadı.", color = Color.Gray)
+        }
+    } else {
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(workouts) { item ->
+                LibraryWorkoutCard(item, onClick = { onWorkoutClick(item.workout.workoutId) })
+            }
         }
     }
 }
 
+// Kütüphane görünümü için biraz farklı bir kart tasarımı (ikonlu)
 @Composable
-fun WorkoutCard(program: MockWorkoutProgram) {
+fun LibraryWorkoutCard(
+    item: WorkoutWithExercises,
+    onClick: () -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -310,54 +302,51 @@ fun WorkoutCard(program: MockWorkoutProgram) {
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = program.title,
+                        text = item.workout.workoutName,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                     Text(
-                        text = program.subtitle,
+                        text = "${item.exercises.size} Egzersiz • ${item.workout.difficulty}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray
                     )
                 }
                 Box(
                     modifier = Modifier
-                        .size(50.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .background(Color.DarkGray.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.DateRange, // Düzeltildi
+                        imageVector = Icons.Default.AccountBox, // Kütüphane ikonu
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            program.exercises.forEach { exercise ->
+            // İlk 2 egzersizi gösterelim
+            item.exercises.take(2).forEach { exercise ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = 2.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "${exercise.name} · ${exercise.detail}",
+                        text = exercise.name,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.LightGray,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        text = exercise.sets,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = Color.LightGray
                     )
                 }
+            }
+            if(item.exercises.size > 2) {
+                Text("...", color = Color.Gray)
             }
         }
     }

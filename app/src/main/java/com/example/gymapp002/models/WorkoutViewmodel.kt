@@ -22,8 +22,19 @@ class WorkoutViewModel(
     private val _selectedDate = MutableStateFlow(LocalDate.now())
     val selectedDate: StateFlow<LocalDate> = _selectedDate
 
-    // 2. Veritabanındaki TÜM antrenmanlar (Otomatik güncellenir)
+    // 2. Veritabanındaki TÜM antrenmanlar (Repository'den gelen ham veri)
     private val allWorkouts = workoutRepository.allWorkouts
+
+    // --- YENİ EKLENEN KISIM (KÜTÜPHANE LİSTESİ) ---
+    // "Antrenman" sekmesinde tüm listeyi göstermek için bunu kullanacağız.
+    // Filtreleme yapmadan direkt veritabanındaki her şeyi verir.
+    val libraryWorkouts: StateFlow<List<WorkoutWithExercises>> = allWorkouts
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+    // -----------------------------------------------
 
     // 3. GÜNLÜK PLAN (Filtrelenmiş Liste)
     // Tarih değiştikçe veya yeni antrenman eklendikçe burası otomatik hesaplanır.
@@ -53,9 +64,7 @@ class WorkoutViewModel(
                 val days = w.recurrenceDays.split(",")
                 days.contains(dayIndex.toString())
             } else {
-                // Döngüsel mantık (V2'de detaylandırılabilir, şimdilik pas geçiyoruz veya her gün gösteriyoruz)
-                // Basitlik için şimdilik döngüsel antrenmanları her gün gösterelim mi?
-                // Ya da sadece WEEKLY çalışsın şimdilik.
+                // Döngüsel mantık şimdilik kapalı
                 false
             }
         }
