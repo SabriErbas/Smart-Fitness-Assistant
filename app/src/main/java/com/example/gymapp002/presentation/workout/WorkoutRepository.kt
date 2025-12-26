@@ -31,4 +31,9 @@ class WorkoutRepository(private val workoutDao: WorkoutDao) {
             workoutDao.insertWorkoutExerciseCrossRef(finalCrossRef)
         }
     }
+
+    //eklenen antrenmanların silinme özelliğini sağlar
+    suspend fun deleteWorkout(workoutId: Int) {
+        workoutDao.deleteWorkoutById(workoutId)
+    }
 }

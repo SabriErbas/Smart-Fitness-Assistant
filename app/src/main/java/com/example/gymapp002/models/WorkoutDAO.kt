@@ -17,6 +17,10 @@ interface WorkoutDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWorkoutExerciseCrossRef(crossRef: WorkoutExerciseCrossRef)
 
+    //takvim üzerinde atanan ve eklenen antrenmanın silinmesini sağlar
+    @Query("DELETE FROM workouts WHERE workoutId = :workoutId")
+    suspend fun deleteWorkoutById(workoutId: Int)
+
     // Antrenmanları ve içindeki hareketleri getir
     @Transaction // İlişkisel sorgularda @Transaction şarttır!
     @Query("SELECT * FROM workouts")

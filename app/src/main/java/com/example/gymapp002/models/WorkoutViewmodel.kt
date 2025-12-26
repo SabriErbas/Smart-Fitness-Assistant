@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -67,6 +68,15 @@ class WorkoutViewModel(
                 // Döngüsel mantık şimdilik kapalı
                 false
             }
+        }
+    }
+
+
+    //ekrandan antrenmanların silinmesini sağlayan viewmdel metotu
+    fun deleteWorkout(workoutId: Int) {
+        viewModelScope.launch {
+            workoutRepository.deleteWorkout(workoutId)
+            // Silince liste (Flow) sayesinde UI otomatik güncellenir, ekstra bir şeye gerek yok.
         }
     }
 }

@@ -10,8 +10,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -29,8 +29,6 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-// --- NOT: Mock Data sınıflarını (MockExercise vb.) tamamen sildik! ---
-
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun WorkoutScreen(
@@ -41,10 +39,9 @@ fun WorkoutScreen(
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("PLAN", "ANTRENMAN")
 
-    // ViewModel'den iki farklı listeyi dinliyoruz
     val selectedDate by viewModel.selectedDate.collectAsState()
-    val dailyPlan by viewModel.dailyPlan.collectAsState()           // Filtrelenmiş (Takvim)
-    val libraryWorkouts by viewModel.libraryWorkouts.collectAsState() // Tümü (Kütüphane)
+    val dailyPlan by viewModel.dailyPlan.collectAsState()
+    val libraryWorkouts by viewModel.libraryWorkouts.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -69,16 +66,17 @@ fun WorkoutScreen(
                     onWorkoutClick = onNavigateToDetail
                 )
                 1 -> GeneralWorkoutList(
-                    workouts = libraryWorkouts, // Gerçek veriyi buraya paslıyoruz
-                    onWorkoutClick = onNavigateToDetail
+                    workouts = libraryWorkouts,
+                    onWorkoutClick = onNavigateToDetail,
+                    // YENİ: Silme işlemini ViewModel'e bağlıyoruz
+                    onDeleteClick = { workoutId -> viewModel.deleteWorkout(workoutId) }
                 )
             }
         }
     }
 }
 
-// --- PLAN SEKMESİ BİLEŞENLERİ (Aynı kaldı) ---
-
+// --- PLAN SEKMESİ BİLEŞENLERİ (Aynı) ---
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun UserPlanSection(
@@ -90,12 +88,10 @@ fun UserPlanSection(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.height(16.dp))
-
         WeekCalendar(
             selectedDate = selectedDate,
             onDateSelected = onDateSelected
         )
-
         Spacer(modifier = Modifier.height(24.dp))
         Divider(color = Color.DarkGray, thickness = 0.5.dp)
 
@@ -254,12 +250,13 @@ fun CustomTabRow(
     }
 }
 
-// --- GÜNCELLENEN KÜTÜPHANE LİSTESİ ---
+// --- KÜTÜPHANE LİSTESİ (GÜNCELLENDİ) ---
 
 @Composable
 fun GeneralWorkoutList(
-    workouts: List<WorkoutWithExercises>, // Artık gerçek veri alıyor
-    onWorkoutClick: (Int) -> Unit
+    workouts: List<WorkoutWithExercises>,
+    onWorkoutClick: (Int) -> Unit,
+    onDeleteClick: (Int) -> Unit // YENİ: Silme parametresi
 ) {
     if (workouts.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -271,22 +268,27 @@ fun GeneralWorkoutList(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(workouts) { item ->
-                LibraryWorkoutCard(item, onClick = { onWorkoutClick(item.workout.workoutId) })
+                LibraryWorkoutCard(
+                    item = item,
+                    onClick = { onWorkoutClick(item.workout.workoutId) },
+                    onDeleteClick = { onDeleteClick(item.workout.workoutId) } // YENİ: Karta aktar
+                )
             }
         }
     }
 }
 
-// Kütüphane görünümü için biraz farklı bir kart tasarımı (ikonlu)
+// Kütüphane kartı (GÜNCELLENDİ: İkon yerine Silme Butonu)
 @Composable
 fun LibraryWorkoutCard(
     item: WorkoutWithExercises,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDeleteClick: () -> Unit // YENİ: Silme aksiyonu
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable { onClick() }, // Karta tıklayınca detay açılır
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -313,24 +315,18 @@ fun LibraryWorkoutCard(
                         color = Color.Gray
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.DarkGray.copy(alpha = 0.5f)),
-                    contentAlignment = Alignment.Center
-                ) {
+                // YENİ: ÇÖP KUTUSU BUTONU
+                IconButton(onClick = onDeleteClick) {
                     Icon(
-                        imageVector = Icons.Default.AccountBox, // Kütüphane ikonu
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Antrenmanı Sil",
+                        tint = Color.Gray // İstersen MaterialTheme.colorScheme.error yapıp kırmızı yapabilirsin
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // İlk 2 egzersizi gösterelim
             item.exercises.take(2).forEach { exercise ->
                 Row(
                     modifier = Modifier
