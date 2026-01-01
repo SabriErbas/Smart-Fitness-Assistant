@@ -5,28 +5,32 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
-// Importlar
+import com.example.gymapp002.data.local.dao.ExerciseDAO
+import com.example.gymapp002.data.local.dao.WorkoutDao
+import com.example.gymapp002.data.local.dao.WorkoutHistoryDao
+import com.example.gymapp002.data.local.entity.ExerciseEntity
 import com.example.gymapp002.data.local.entity.WorkoutEntity
 import com.example.gymapp002.data.local.entity.WorkoutExerciseCrossRef
-import com.example.gymapp002.data.local.dao.WorkoutDao
-import com.example.gymapp002.data.local.entity.Exercise
+import com.example.gymapp002.data.local.entity.WorkoutHistoryEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Database(
     entities = [
-        Exercise::class,
+        ExerciseEntity::class,
         WorkoutEntity::class,
-        WorkoutExerciseCrossRef::class
+        WorkoutExerciseCrossRef::class,
+        WorkoutHistoryEntity::class // YENİ TABLO
     ],
-    version = 3, // DİKKAT: Versiyonu 2'den 3'e çektik!
+    version = 5, // VERSİYON GÜNCELLENDİ
     exportSchema = false
 )
 abstract class GymDatabase : RoomDatabase() {
 
     abstract fun exerciseDao(): ExerciseDAO
     abstract fun workoutDao(): WorkoutDao
+    abstract fun workoutHistoryDao(): WorkoutHistoryDao // YENİ DAO
 
     companion object {
         @Volatile
@@ -36,8 +40,7 @@ abstract class GymDatabase : RoomDatabase() {
             return Instance ?: synchronized(this) {
                 Room.databaseBuilder(context, GymDatabase::class.java, "gym_database")
                     .addCallback(DatabaseCallback())
-                    // Versiyon 3 olduğu için eskiyi silip yenisini kuracak
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration() // Versiyon değişince eski veriyi silip yeniden kurar
                     .build()
                     .also { Instance = it }
             }
@@ -48,146 +51,126 @@ abstract class GymDatabase : RoomDatabase() {
                 super.onCreate(db)
                 Instance?.let { database ->
                     CoroutineScope(Dispatchers.IO).launch {
-                        populateDatabase(database.exerciseDao())
+                        populateDatabase(
+                            database.exerciseDao(),
+                            database.workoutDao()
+                        )
                     }
                 }
             }
         }
 
-        suspend fun populateDatabase(exerciseDao: ExerciseDAO) {
-            // Başlangıç verileri (Aynı kalıyor)
-            val initialData = listOf(
-                // 1. Göğüs - Barbell
-                Exercise(
-                    exerciseId = 0,
+        // Başlangıç verilerini (Seed Data) yükleyen fonksiyon
+        suspend fun populateDatabase(exerciseDao: ExerciseDAO, workoutDao: WorkoutDao) {
+            // Temizlik (Garanti olsun diye)
+            exerciseDao.deleteAll()
+            workoutDao.deleteAll()
+
+            // 1. DETAYLI EGZERSİZLERİ EKLE
+            val exercises = listOf(
+                ExerciseEntity(
                     name = "Bench Press",
                     muscleGroup = "Göğüs",
+                    secondaryMuscles = "Ön Omuz, Triceps",
                     category = "Kuvvet",
                     difficulty = "Intermediate",
-                    equipment = "Barbell",
-                    recipe = "Sırt üstü sehpaya uzanın, barı göğüs hizasına indirip nefes vererek yukarı itin.",
-                    description = "Göğüs kaslarını geliştirmek için en temel ve etkili egzersizdir.",
-                    desURL = null
+                    equipment = "Barbell, Bench",
+                    description = "Sırt üstü sehpaya uzanın. Barı omuz genişliğinden biraz geniş tutun. Göğüs hizasına indirip nefes vererek itin.",
+                    tips = "Dirseklerinizi 90 derece açmayın, hafifçe vücuda yaklaştırın. Ayaklarınız yere sağlam bassın."
                 ),
-
-                // 2. Bacak - Vücut Ağırlığı/Dumbbell
-                Exercise(
-                    exerciseId = 0,
-                    name = "Goblet Squat",
+                ExerciseEntity(
+                    name = "Squat",
                     muscleGroup = "Bacak",
+                    secondaryMuscles = "Kalça, Core",
                     category = "Kuvvet",
-                    difficulty = "Beginner",
-                    equipment = "Dumbbell",
-                    recipe = "Dumbbell'ı göğüs hizasında tutun, sırt düz bir şekilde çömelin ve kalkın.",
-                    description = "Ön bacak (kavriceps) ve kalça kaslarını çalıştırır, form öğrenmek için harikadır.",
-                    desURL = null
+                    difficulty = "Advanced",
+                    equipment = "Barbell, Rack",
+                    description = "Barı sırtınıza (trapez kaslarına) yerleştirin. Ayakları omuz genişliğinde açın. Sandalyeye oturur gibi çömelin ve kalkın.",
+                    tips = "Dizlerinizin içe çökmesine izin vermeyin. Sırtınızı dik tutun."
                 ),
-
-                // 3. Sırt - Makine
-                Exercise(
-                    exerciseId = 0,
-                    name = "Lat Pulldown",
-                    muscleGroup = "Sırt",
-                    category = "Kuvvet",
-                    difficulty = "Beginner",
-                    equipment = "Cable Machine",
-                    recipe = "Barı geniş tutun, göğsünüze doğru çekerken kürek kemiklerinizi sıkıştırın.",
-                    description = "Sırt genişliğini artırmak ve kanat kaslarını geliştirmek için idealdir.",
-                    desURL = null
-                ),
-
-                // 4. Omuz - Dumbbell
-                Exercise(
-                    exerciseId = 0,
-                    name = "Lateral Raise",
-                    muscleGroup = "Omuz",
-                    category = "Hipertrofi",
-                    difficulty = "Intermediate",
-                    equipment = "Dumbbell",
-                    recipe = "Ayakta durun, dirsekleri hafif kırarak ağırlıkları yanlara doğru omuz hizasına kadar kaldırın.",
-                    description = "Omuz başlarını yuvarlaklaştırmak ve geniş göstermek için izole bir harekettir.",
-                    desURL = null
-                ),
-
-                // 5. Arka Kol (Triceps) - Cable
-                Exercise(
-                    exerciseId = 0,
-                    name = "Tricep Pushdown",
-                    muscleGroup = "Arka Kol",
-                    category = "İzolasyon",
-                    difficulty = "Beginner",
-                    equipment = "Cable Machine",
-                    recipe = "Dirsekleri vücuda sabitleyin, ipi veya barı aşağı doğru iterek kolunuzu düzleştirin.",
-                    description = "Arka kol kaslarını izole etmek ve sıkılaştırmak için kullanılır.",
-                    desURL = null
-                ),
-
-                // 6. Ön Kol (Biceps) - Barbell
-                Exercise(
-                    exerciseId = 0,
-                    name = "Barbell Curl",
-                    muscleGroup = "Ön Kol",
-                    category = "Kuvvet",
-                    difficulty = "Beginner",
-                    equipment = "Barbell",
-                    recipe = "Barı omuz genişliğinde tutun, dirsekleri oynatmadan ağırlığı yukarı kaldırın.",
-                    description = "Biceps kaslarını hacimlendirmek için en popüler egzersizdir.",
-                    desURL = null
-                ),
-
-                // 7. Tüm Vücut / Arka Zincir - Barbell
-                Exercise(
-                    exerciseId = 0,
+                ExerciseEntity(
                     name = "Deadlift",
-                    muscleGroup = "Sırt/Bacak",
+                    muscleGroup = "Sırt",
+                    secondaryMuscles = "Bacak, Kalça, Forearm",
                     category = "Kuvvet",
                     difficulty = "Advanced",
                     equipment = "Barbell",
-                    recipe = "Barı yerden kalça ve bacak gücüyle kaldırın, belinizi daima düz tutun.",
-                    description = "Vücuttaki en çok kas grubunu aynı anda çalıştıran temel güç hareketidir.",
-                    desURL = null
+                    description = "Barı kaval kemiğinize yaklaştırın. Kalçayı geriye atarak eğilin. Sırt düz bir şekilde barı yerden kaldırın.",
+                    tips = "Belinizi asla bükmeyin (kambur çıkarmayın). Barı vücudunuza yakın tutun."
                 ),
-
-                // 8. Karın - Vücut Ağırlığı
-                Exercise(
-                    exerciseId = 0,
-                    name = "Plank",
-                    muscleGroup = "Karın",
-                    category = "Dayanıklılık",
+                ExerciseEntity(
+                    name = "Dumbbell Curl",
+                    muscleGroup = "Biceps",
+                    secondaryMuscles = "Forearm",
+                    category = "İzolasyon",
                     difficulty = "Beginner",
-                    equipment = "Mat",
-                    recipe = "Dirsekler ve ayak parmakları üzerinde vücudu düz bir çizgi halinde sabit tutun.",
-                    description = "Core (merkez) bölgesini güçlendirmek ve stabiliteyi artırmak için yapılır.",
-                    desURL = null
+                    equipment = "Dumbbell",
+                    description = "Ayakta dik durun. Avuç içleri karşıya bakacak şekilde dambılları omuz hizasına kaldırın ve yavaşça indirin.",
+                    tips = "Vücudunuzu sallayarak momentum almayın. Sadece kollarınız hareket etsin."
                 ),
-
-                // 9. Bacak / Kalça - Makine
-                Exercise(
-                    exerciseId = 0,
-                    name = "Leg Press",
-                    muscleGroup = "Bacak",
+                ExerciseEntity(
+                    name = "Lat Pulldown",
+                    muscleGroup = "Sırt",
+                    secondaryMuscles = "Biceps",
                     category = "Kuvvet",
                     difficulty = "Beginner",
-                    equipment = "Machine",
-                    recipe = "Koltuğa oturun, ayaklarınızı platforma yerleştirin ve platformu bacaklarınızla itin.",
-                    description = "Bel problemi yaşayanlar için Squat'a alternatif güvenli bir bacak egzersizidir.",
-                    desURL = null
+                    equipment = "Cable Machine",
+                    description = "Barı geniş tutun, göğsünüze doğru çekerken kürek kemiklerinizi birbirine yaklaştırın.",
+                    tips = "Geriye doğru aşırı yatmayın. Hareketi kontrolü yapın."
                 ),
-
-                // 10. Kardiyo - Ekipman
-                Exercise(
-                    exerciseId = 0,
-                    name = "Rowing Machine",
-                    muscleGroup = "Tüm Vücut",
-                    category = "Kardiyo",
-                    difficulty = "Intermediate",
-                    equipment = "Rowing Machine",
-                    recipe = "Bacaklarla itiş yaparken aynı anda kulpu karnınıza doğru çekin.",
-                    description = "Hem kondisyonu artırır hem de sırt ve bacak kaslarını aktif çalıştırır.",
-                    desURL = null
+                ExerciseEntity(
+                    name = "Push Up",
+                    muscleGroup = "Göğüs",
+                    secondaryMuscles = "Triceps, Omuz",
+                    category = "Kuvvet",
+                    difficulty = "Beginner",
+                    equipment = "Vücut Ağırlığı",
+                    description = "Plank pozisyonu alın. Göğsünüzü yere yaklaştırıp tekrar itin.",
+                    tips = "Kalçayı düşürmeyin veya çok yukarı kaldırmayın."
                 )
             )
-            exerciseDao.insertAll(initialData)
+            exerciseDao.insertAll(exercises)
+
+            // 2. SİSTEM ANTRENMANLARINI EKLE (SİLİNEMEZ)
+
+            // Full Body
+            val fullBodyId = workoutDao.insertWorkout(
+                WorkoutEntity(
+                    workoutName = "Başlangıç: Full Body",
+                    difficulty = "Beginner",
+                    duration = "45 dk",
+                    scheduleType = "WEEKLY",
+                    isSystemWorkout = true,
+                    description = "Tüm vücudu çalıştıran temel adaptasyon programı."
+                )
+            ).toInt()
+
+            // Üst Vücut
+            val upperBodyId = workoutDao.insertWorkout(
+                WorkoutEntity(
+                    workoutName = "Orta Seviye: Üst Vücut",
+                    difficulty = "Intermediate",
+                    duration = "60 dk",
+                    scheduleType = "WEEKLY",
+                    isSystemWorkout = true,
+                    description = "Göğüs, Sırt, Omuz ve Kol odaklı antrenman."
+                )
+            ).toInt()
+
+            // 3. ANTRENMAN İÇERİKLERİNİ OLUŞTUR (Cross Ref)
+            // Not: ID'lerin 1'den başladığını varsayıyoruz.
+            // 1:Bench, 2:Squat, 3:Deadlift, 4:Curl, 5:LatPulldown, 6:PushUp
+
+            // Full Body Programı:
+            workoutDao.insertWorkoutExerciseCrossRef(WorkoutExerciseCrossRef(workoutId = fullBodyId, exerciseId = 1, sets = 3, reps = "10", order = 1)) // Bench
+            workoutDao.insertWorkoutExerciseCrossRef(WorkoutExerciseCrossRef(workoutId = fullBodyId, exerciseId = 2, sets = 3, reps = "12", order = 2)) // Squat
+            workoutDao.insertWorkoutExerciseCrossRef(WorkoutExerciseCrossRef(workoutId = fullBodyId, exerciseId = 6, sets = 3, reps = "Max", order = 3)) // Push Up
+
+            // Üst Vücut Programı:
+            workoutDao.insertWorkoutExerciseCrossRef(WorkoutExerciseCrossRef(workoutId = upperBodyId, exerciseId = 1, sets = 4, reps = "8", order = 1)) // Bench
+            workoutDao.insertWorkoutExerciseCrossRef(WorkoutExerciseCrossRef(workoutId = upperBodyId, exerciseId = 3, sets = 3, reps = "10", order = 2)) // Deadlift
+            workoutDao.insertWorkoutExerciseCrossRef(WorkoutExerciseCrossRef(workoutId = upperBodyId, exerciseId = 5, sets = 3, reps = "12", order = 3)) // Lat Pulldown
+            workoutDao.insertWorkoutExerciseCrossRef(WorkoutExerciseCrossRef(workoutId = upperBodyId, exerciseId = 4, sets = 3, reps = "12", order = 4)) // Curl
         }
     }
 }

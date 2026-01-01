@@ -1,12 +1,14 @@
-package com.example.gymapp002.db
+package com.example.gymapp002.data.local.dao
 
+
+import com.example.gymapp002.data.local.entity.ExerciseEntity as Exercise
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.example.gymapp002.data.local.entity.Exercise
 import kotlinx.coroutines.flow.Flow
+
 
 @Dao
 interface ExerciseDAO {
@@ -29,4 +31,9 @@ interface ExerciseDAO {
     // Silme
     @Delete
     suspend fun deleteExercise(exercise: Exercise)
+
+    @Query("DELETE FROM exercises")
+    suspend fun deleteAll()
+
+
 }

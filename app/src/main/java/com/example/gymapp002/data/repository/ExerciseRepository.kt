@@ -1,8 +1,8 @@
 package com.example.gymapp002.data.repository
 
 
-import com.example.gymapp002.data.local.entity.Exercise
-import com.example.gymapp002.db.ExerciseDAO
+import com.example.gymapp002.data.local.entity.ExerciseEntity as Exercise
+import com.example.gymapp002.data.local.dao.ExerciseDAO
 import kotlinx.coroutines.flow.Flow
 
 class ExerciseRepository(private val exerciseDao: ExerciseDAO) {
@@ -20,4 +20,5 @@ class ExerciseRepository(private val exerciseDao: ExerciseDAO) {
     suspend fun insert(exercise: Exercise) {
         exerciseDao.insertExercise(exercise)
     }
+
 }

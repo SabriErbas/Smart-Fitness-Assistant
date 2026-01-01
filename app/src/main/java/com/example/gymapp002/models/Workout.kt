@@ -10,16 +10,11 @@ data class WorkoutEntity(
     val workoutName: String,
     val difficulty: String,
     val duration: String,
-
-    // --- YENİ EKLENEN SÜTUNLAR ---
-
-    // Planlama Tipi: "WEEKLY" (Haftalık) veya "CYCLIC" (Döngüsel)
     val scheduleType: String = "WEEKLY",
-
-    // Haftalık ise günler: "1,3,5" şeklinde String olarak tutacağız (Parsing kolay olsun diye)
-    // 1=Pazartesi, 7=Pazar
     val recurrenceDays: String = "",
+    val recurrenceGap: Int = 0,
 
-    // Döngüsel ise boşluk: "2" (2 günde bir)
-    val recurrenceGap: Int = 0
+    // --- YENİ: SİLİNEMEZ SİSTEM ANTRENMANI MI? ---
+    val isSystemWorkout: Boolean = false, // True ise kullanıcı bunu silemez
+    val description: String = "" // Antrenmanın amacı ne? (Örn: "Yeni başlayanlar için tüm vücut adaptasyonu")
 )

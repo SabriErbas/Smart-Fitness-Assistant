@@ -1,67 +1,86 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.gymapp002.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.WatchLater
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.gymapp002.data.local.entity.ExerciseEntity
 import com.example.gymapp002.ui.AppViewModelProvider
-import com.example.gymapp002.data.local.entity.Exercise
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateWorkoutScreen(
     onBackClick: () -> Unit,
     onSaveClick: () -> Unit,
     viewModel: CreateWorkoutViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
-    val workoutName by viewModel.workoutName.collectAsState()
-    val scheduleType by viewModel.scheduleType.collectAsState()
-    val cycleGap by viewModel.cycleGap.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
-    // Bottom Sheet (Egzersiz Seçici) Durumu
-    var showBottomSheet by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
+    // --- SEÇİCİ PENCERESİ ---
+    if (uiState.isPickerVisible) {
+        ExerciseSelectionDialog(
+            exercises = uiState.filteredExercises,
+            searchQuery = uiState.searchQuery,
+            onSearchChange = { viewModel.updateSearchQuery(it) },
+            onDismiss = { viewModel.togglePicker(false) },
+            onExerciseSelected = { exercise -> viewModel.addExercise(exercise) }
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            CreateWorkoutTopBar(
-                onBackClick = onBackClick,
-                canSave = workoutName.isNotBlank() && viewModel.selectedExercises.isNotEmpty(),
-                onSave = { viewModel.saveWorkout(onSuccess = onSaveClick) }
+            CenterAlignedTopAppBar(
+                title = { Text("Yeni Plan Oluştur", color = Color.White, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) { Icon(Icons.Default.Close, null, tint = Color.White) }
+                },
+                actions = {
+                    TextButton(
+                        onClick = { viewModel.saveWorkout(onSuccess = onSaveClick) },
+                        enabled = uiState.isSaveEnabled
+                    ) {
+                        Text("KAYDET", color = if (uiState.isSaveEnabled) MaterialTheme.colorScheme.primary else Color.Gray, fontWeight = FontWeight.Bold)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
             )
         },
         floatingActionButton = {
-            // Egzersiz Ekleme Butonu (FAB)
             FloatingActionButton(
-                onClick = { showBottomSheet = true },
-                containerColor = MaterialTheme.colorScheme.primary, // Asit Yeşili
-                contentColor = Color.Black
+                onClick = { viewModel.togglePicker(true) },
+                containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Exercise")
+                Icon(Icons.Default.Add, null, tint = Color.Black)
             }
         }
     ) { paddingValues ->
@@ -71,16 +90,13 @@ fun CreateWorkoutScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 24.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 1. ANTRENMAN İSMİ
+            // 1. İSİM
             OutlinedTextField(
-                value = workoutName,
-                onValueChange = { viewModel.onNameChange(it) },
-                label = { Text("Antrenman Adı", color = Color.Gray) },
-                placeholder = { Text("Örn: Göğüs & Biceps", color = Color.DarkGray) },
+                value = uiState.workoutName,
+                onValueChange = { viewModel.updateName(it) },
+                label = { Text("Antrenman Adı") },
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = Color.Gray,
@@ -88,319 +104,355 @@ fun CreateWorkoutScreen(
                     unfocusedTextColor = Color.White
                 )
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // 2. PLANLAMA (Schedule) BÖLÜMÜ
-            Text(
-                text = "Program Sıklığı",
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Toggle (Haftalık vs Döngüsel)
-            ScheduleTypeSelector(
-                currentType = scheduleType,
-                onTypeSelected = { viewModel.setScheduleType(it) }
-            )
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Seçime göre değişen içerik
-            if (scheduleType == ScheduleType.WEEKLY) {
-                // Pzt, Sal, Çar...
-                WeeklyDaySelector(
-                    selectedDays = viewModel.selectedDays,
-                    onDayToggle = { viewModel.toggleDaySelection(it) }
+            // 2. SÜRE & MOLA
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.WatchLater, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text("Tahmini Süre", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        Text("${uiState.calculatedDurationMin} dk", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Timer, null, tint = Color(0xFFFFC107))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text("Set Arası", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        Text("${uiState.restTimeSeconds} sn", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Divider(color = Color.DarkGray, thickness = 0.5.dp)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 3. PLANLAMA
+            Text("Planlama Türü", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                ScheduleTypeButton(
+                    text = "Haftalık",
+                    isSelected = uiState.scheduleType == "WEEKLY",
+                    onClick = { viewModel.setScheduleType("WEEKLY") },
+                    modifier = Modifier.weight(1f)
                 )
-            } else {
-                // Her X Günde Bir
-                CyclicInputSelector(
-                    gap = cycleGap,
-                    onGapChange = { viewModel.onCycleGapChange(it) }
+                Spacer(modifier = Modifier.width(12.dp))
+                ScheduleTypeButton(
+                    text = "Döngüsel",
+                    isSelected = uiState.scheduleType == "CYCLIC",
+                    onClick = { viewModel.setScheduleType("CYCLIC") },
+                    modifier = Modifier.weight(1f)
                 )
             }
+            Spacer(modifier = Modifier.height(16.dp))
 
+            if (uiState.scheduleType == "WEEKLY") {
+                Text("Hangi Günler?", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    val days = listOf("P", "S", "Ç", "P", "C", "C", "P")
+                    days.forEachIndexed { index, label ->
+                        val dayValue = index + 1
+                        DayCircleButton(
+                            label = label,
+                            isSelected = uiState.selectedDays.contains(dayValue),
+                            onClick = { viewModel.toggleDaySelection(dayValue) }
+                        )
+                    }
+                }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Repeat, null, tint = Color.Gray)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Kaç günde bir yapılsın?", color = Color.White)
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text("${uiState.recurrenceGap} Gün", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                }
+            }
             Spacer(modifier = Modifier.height(24.dp))
+            Divider(color = Color.DarkGray, thickness = 0.5.dp)
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // 3. SEÇİLEN EGZERSİZLER LİSTESİ
-            Text(
-                text = "Egzersizler (${viewModel.selectedExercises.size})",
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyColumn(
-                contentPadding = PaddingValues(bottom = 80.dp), // FAB altında kalmasın
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(viewModel.selectedExercises) { item ->
-                    AddedExerciseCard(
-                        item = item,
-                        onUpdate = { sets, reps -> viewModel.updateSetsReps(item.exercise.exerciseId, sets, reps) },
-                        onRemove = { viewModel.removeExercise(item.exercise.exerciseId) }
-                    )
+            // 4. LİSTE
+            Text("Eklenecek Hareketler", style = MaterialTheme.typography.titleMedium, color = Color.Gray)
+            if (uiState.selectedExercises.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                    Text("+ Butonuna basarak hareket seç", color = Color.Gray)
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
+                ) {
+                    itemsIndexed(uiState.selectedExercises) { index, item ->
+                        ReorderableExerciseCard(
+                            item = item,
+                            isFirst = index == 0,
+                            isLast = index == uiState.selectedExercises.size - 1,
+                            onMoveUp = { viewModel.moveExercise(index, -1) },
+                            onMoveDown = { viewModel.moveExercise(index, 1) },
+                            onRemove = { viewModel.removeExercise(item) },
+                            // YENİ: Set/Tekrar değiştiğinde ViewModel'e haber ver
+                            onDetailsChange = { newSets, newReps ->
+                                viewModel.updateExerciseDetails(index, newSets, newReps)
+                            }
+                        )
+                    }
                 }
             }
         }
-
-        // 4. BOTTOM SHEET (Egzersiz Seçimi İçin)
-        if (showBottomSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showBottomSheet = false },
-                sheetState = sheetState,
-                containerColor = MaterialTheme.colorScheme.surface // Koyu gri zemin
-            ) {
-                ExercisePickerSheetContent(
-                    viewModel = viewModel,
-                    onClose = { showBottomSheet = false }
-                )
-            }
-        }
     }
 }
 
-// --- ALT BİLEŞENLER ---
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CreateWorkoutTopBar(onBackClick: () -> Unit, canSave: Boolean, onSave: () -> Unit) {
-    CenterAlignedTopAppBar(
-        title = { Text("Yeni Plan", color = Color.White, fontWeight = FontWeight.Bold) },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
-            }
-        },
-        actions = {
-            TextButton(onClick = onSave, enabled = canSave) {
-                Text(
-                    text = "KAYDET",
-                    color = if (canSave) MaterialTheme.colorScheme.primary else Color.Gray,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        },
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = Color.Transparent
-        )
-    )
-}
+// --- DÜZELTİLMİŞ KART BİLEŞENİ (Set/Tekrar Düzenlenebilir) ---
 
 @Composable
-fun ScheduleTypeSelector(currentType: ScheduleType, onTypeSelected: (ScheduleType) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.DarkGray)
-            .padding(4.dp)
-    ) {
-        // Haftalık Butonu
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(if (currentType == ScheduleType.WEEKLY) MaterialTheme.colorScheme.surface else Color.Transparent)
-                .clickable { onTypeSelected(ScheduleType.WEEKLY) }
-                .padding(vertical = 8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                "Haftalık",
-                color = if (currentType == ScheduleType.WEEKLY) MaterialTheme.colorScheme.primary else Color.Gray,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        // Döngüsel Butonu
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(if (currentType == ScheduleType.CYCLIC) MaterialTheme.colorScheme.surface else Color.Transparent)
-                .clickable { onTypeSelected(ScheduleType.CYCLIC) }
-                .padding(vertical = 8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                "Döngüsel",
-                color = if (currentType == ScheduleType.CYCLIC) MaterialTheme.colorScheme.primary else Color.Gray,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-fun WeeklyDaySelector(selectedDays: List<Int>, onDayToggle: (Int) -> Unit) {
-    val days = listOf("P", "S", "Ç", "P", "C", "C", "P")
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        days.forEachIndexed { index, dayName ->
-            val dayIndex = index + 1
-            val isSelected = selectedDays.contains(dayIndex)
-
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
-                    .border(1.dp, if (isSelected) Color.Transparent else Color.Gray, CircleShape)
-                    .clickable { onDayToggle(dayIndex) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = dayName,
-                    color = if (isSelected) Color.Black else Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun CyclicInputSelector(gap: String, onGapChange: (String) -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-            .padding(16.dp)
-    ) {
-        Text("Her", color = Color.White)
-        Spacer(modifier = Modifier.width(12.dp))
-
-        OutlinedTextField(
-            value = gap,
-            onValueChange = onGapChange,
-            modifier = Modifier.width(60.dp),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = Color.Gray,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            )
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-        Text("günde bir tekrarla", color = Color.White)
-    }
-}
-
-@Composable
-fun AddedExerciseCard(
-    item: SelectedExerciseState,
-    onUpdate: (String, String) -> Unit,
-    onRemove: () -> Unit
+fun ReorderableExerciseCard(
+    item: SelectedExerciseItem,
+    isFirst: Boolean,
+    isLast: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onRemove: () -> Unit,
+    onDetailsChange: (String, String) -> Unit // YENİ PARAMETRE
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // İsim ve Kas Grubu
-            Column(modifier = Modifier.weight(1f)) {
-                Text(item.exercise.name, color = Color.White, fontWeight = FontWeight.Bold)
-                Text(item.exercise.muscleGroup, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+            // 1. YUKARI / AŞAĞI BUTONLARI
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(
+                    onClick = onMoveUp,
+                    enabled = !isFirst,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowUpward,
+                        contentDescription = "Yukarı",
+                        tint = if (!isFirst) Color.White else Color.DarkGray.copy(alpha = 0.3f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                IconButton(
+                    onClick = onMoveDown,
+                    enabled = !isLast,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowDownward,
+                        contentDescription = "Aşağı",
+                        tint = if (!isLast) Color.White else Color.DarkGray.copy(alpha = 0.3f)
+                    )
+                }
             }
 
-            // Set Input
-            CompactInput(value = item.sets, label = "Set", onValueChange = { onUpdate(it, item.reps) })
-            Spacer(modifier = Modifier.width(8.dp))
-            // Reps Input
-            CompactInput(value = item.reps, label = "Tekrar", onValueChange = { onUpdate(item.sets, it) })
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // 2. İSİM VE GİRİŞ ALANLARI (ORTA)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.exercise.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Set ve Tekrar Giriş Kutuları (Yan Yana)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // SET SAYISI
+                    OutlinedTextField(
+                        value = item.sets,
+                        onValueChange = { onDetailsChange(it, item.reps) },
+                        label = { Text("Set", fontSize = 10.sp) },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = Color.Gray,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        textStyle = TextStyle(fontSize = 12.sp)
+                    )
+
+                    // TEKRAR SAYISI
+                    OutlinedTextField(
+                        value = item.reps,
+                        onValueChange = { onDetailsChange(item.sets, it) },
+                        label = { Text("Tekrar", fontSize = 10.sp) },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = Color.Gray,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        textStyle = TextStyle(fontSize = 12.sp)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Sil Butonu
-            IconButton(onClick = onRemove, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Outlined.Delete, contentDescription = "Remove", tint = Color.Gray)
+            // 3. SİL BUTONU
+            IconButton(onClick = onRemove) {
+                Icon(Icons.Default.Close, contentDescription = "Sil", tint = Color.Gray)
             }
         }
     }
 }
 
+// --- DİĞER YARDIMCI BİLEŞENLER ---
+
 @Composable
-fun CompactInput(value: String, label: String, onValueChange: (String) -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, color = Color.Gray, fontSize = 10.sp)
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.width(50.dp).height(45.dp),
-            singleLine = true,
-            textStyle = LocalTextStyle.current.copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = Color.DarkGray,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            )
+fun DayCircleButton(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.DarkGray)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = if (isSelected) Color.Black else Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
         )
     }
 }
 
 @Composable
-fun ExercisePickerSheetContent(viewModel: CreateWorkoutViewModel, onClose: () -> Unit) {
-    val allExercises by viewModel.allExercises.collectAsState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(500.dp) // Sheet yüksekliği
-            .padding(24.dp)
+fun ScheduleTypeButton(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.DarkGray,
+            contentColor = if (isSelected) Color.Black else Color.White
+        ),
+        shape = RoundedCornerShape(8.dp),
+        modifier = modifier
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Text(text, fontWeight = FontWeight.Bold)
+    }
+}
+
+// --- SEÇİM PENCERESİ (Aynı kaldı) ---
+@Composable
+fun ExerciseSelectionDialog(
+    exercises: List<ExerciseEntity>,
+    searchQuery: String,
+    onSearchChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onExerciseSelected: (ExerciseEntity) -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.background,
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray)
         ) {
-            Text("Egzersiz Seç", style = MaterialTheme.typography.titleLarge, color = Color.White)
-            IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(allExercises) { exercise ->
-                val isSelected = viewModel.selectedExercises.any { it.exercise.exerciseId == exercise.exerciseId }
-
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Başlık
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent)
-                        .clickable { viewModel.toggleExerciseSelection(exercise) }
-                        .padding(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(exercise.name, color = Color.White, fontWeight = FontWeight.SemiBold)
-                        Text(exercise.muscleGroup, color = Color.Gray, fontSize = 12.sp)
-                    }
-                    if (isSelected) {
-                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Text("Hareket Seç", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, null, tint = Color.Gray)
                     }
                 }
-                Divider(color = Color.DarkGray, thickness = 0.5.dp)
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Arama
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchChange,
+                    placeholder = { Text("Ara...") },
+                    leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = Color.DarkGray
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Liste
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(exercises) { exercise ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF2A2A2A))
+                                .clickable { onExerciseSelected(exercise) }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = exercise.name.take(1),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(exercise.name, color = Color.White, fontWeight = FontWeight.SemiBold)
+                                Text(exercise.muscleGroup, color = Color.Gray, style = MaterialTheme.typography.labelSmall)
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
             }
         }
     }

@@ -21,6 +21,7 @@ interface WorkoutDao {
     @Query("DELETE FROM workouts WHERE workoutId = :workoutId")
     suspend fun deleteWorkoutById(workoutId: Int)
 
+
     // Antrenmanları ve içindeki hareketleri getir
     @Transaction // İlişkisel sorgularda @Transaction şarttır!
     @Query("SELECT * FROM workouts")
@@ -30,4 +31,13 @@ interface WorkoutDao {
     @Transaction
     @Query("SELECT * FROM workouts WHERE workoutId = :workoutId")
     fun getWorkoutWithExercisesById(workoutId: Int): Flow<WorkoutWithExercises>
+
+
+    @Query("DELETE FROM workouts")
+    suspend fun deleteAll()
+
+    // NOT: Eğer çapraz tabloyu (CrossRef) da temizlemek istersen
+    // buraya ekleyebiliriz ama şimdilik hata gitmesi için bu yeterli.
+
+
 }

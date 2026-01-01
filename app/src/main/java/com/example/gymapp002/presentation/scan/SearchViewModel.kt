@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import com.example.gymapp002.data.local.entity.Exercise
+import com.example.gymapp002.data.local.entity.ExerciseEntity as Exercise
 
 class SearchViewModel(private val repository: ExerciseRepository) : ViewModel() {
 

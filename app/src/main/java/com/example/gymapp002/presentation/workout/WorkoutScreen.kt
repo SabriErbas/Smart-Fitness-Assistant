@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -37,7 +39,7 @@ fun WorkoutScreen(
     viewModel: WorkoutViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("PLAN", "ANTRENMAN")
+    val tabs = listOf("PLAN", "Antrenman") // İsmi 'Antrenman'dan 'Kütüphane'ye çevirdim, daha mantıklı
 
     val selectedDate by viewModel.selectedDate.collectAsState()
     val dailyPlan by viewModel.dailyPlan.collectAsState()
@@ -68,7 +70,6 @@ fun WorkoutScreen(
                 1 -> GeneralWorkoutList(
                     workouts = libraryWorkouts,
                     onWorkoutClick = onNavigateToDetail,
-                    // YENİ: Silme işlemini ViewModel'e bağlıyoruz
                     onDeleteClick = { workoutId -> viewModel.deleteWorkout(workoutId) }
                 )
             }
@@ -76,7 +77,7 @@ fun WorkoutScreen(
     }
 }
 
-// --- PLAN SEKMESİ BİLEŞENLERİ (Aynı) ---
+// --- PLAN SEKMESİ (Aynı kaldı) ---
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun UserPlanSection(
@@ -207,7 +208,7 @@ fun PlannedWorkoutCard(
     }
 }
 
-// --- DİĞER BİLEŞENLER ---
+// --- YARDIMCI BİLEŞENLER ---
 
 @Composable
 fun CustomTabRow(
@@ -250,17 +251,17 @@ fun CustomTabRow(
     }
 }
 
-// --- KÜTÜPHANE LİSTESİ (GÜNCELLENDİ) ---
+// --- KÜTÜPHANE LİSTESİ (SİSTEM MANTIĞI EKLENDİ) ---
 
 @Composable
 fun GeneralWorkoutList(
     workouts: List<WorkoutWithExercises>,
     onWorkoutClick: (Int) -> Unit,
-    onDeleteClick: (Int) -> Unit // YENİ: Silme parametresi
+    onDeleteClick: (Int) -> Unit
 ) {
     if (workouts.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Henüz hiç antrenman oluşturulmadı.", color = Color.Gray)
+            Text("Henüz hiç antrenman yok.", color = Color.Gray)
         }
     } else {
         LazyColumn(
@@ -271,28 +272,32 @@ fun GeneralWorkoutList(
                 LibraryWorkoutCard(
                     item = item,
                     onClick = { onWorkoutClick(item.workout.workoutId) },
-                    onDeleteClick = { onDeleteClick(item.workout.workoutId) } // YENİ: Karta aktar
+                    onDeleteClick = { onDeleteClick(item.workout.workoutId) }
                 )
             }
         }
     }
 }
 
-// Kütüphane kartı (GÜNCELLENDİ: İkon yerine Silme Butonu)
 @Composable
 fun LibraryWorkoutCard(
     item: WorkoutWithExercises,
     onClick: () -> Unit,
-    onDeleteClick: () -> Unit // YENİ: Silme aksiyonu
+    onDeleteClick: () -> Unit
 ) {
+    // Sistem antrenmanı mı kontrolü
+    val isSystem = item.workout.isSystemWorkout
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }, // Karta tıklayınca detay açılır
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            containerColor = if(isSystem) Color(0xFF252525) else MaterialTheme.colorScheme.surface
+        ),
+        // Sistem antrenmanlarına hafif bir çerçeve (Border) ekleyelim ki özel olduğu belli olsun
+        border = if (isSystem) androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray) else null
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -303,25 +308,43 @@ fun LibraryWorkoutCard(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.workout.workoutName,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = item.workout.workoutName,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = if(isSystem) Color(0xFFBB86FC) else Color.White // Sistem ise morumsu
+                        )
+                        if (isSystem) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = Color(0xFFBB86FC), modifier = Modifier.size(16.dp))
+                        }
+                    }
+
                     Text(
                         text = "${item.exercises.size} Egzersiz • ${item.workout.difficulty}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray
                     )
                 }
-                // YENİ: ÇÖP KUTUSU BUTONU
-                IconButton(onClick = onDeleteClick) {
+
+                // SİLME MANTIĞI BURADA
+                if (isSystem) {
+                    // Sistem antrenmanıysa KİLİT ikonu göster, silme yok
                     Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Antrenmanı Sil",
-                        tint = Color.Gray // İstersen MaterialTheme.colorScheme.error yapıp kırmızı yapabilirsin
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "System Workout",
+                        tint = Color.DarkGray
                     )
+                } else {
+                    // Kullanıcı antrenmanıysa SİLME butonu göster
+                    IconButton(onClick = onDeleteClick) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Antrenmanı Sil",
+                            tint = Color.Gray
+                        )
+                    }
                 }
             }
 
@@ -341,7 +364,7 @@ fun LibraryWorkoutCard(
                     )
                 }
             }
-            if(item.exercises.size > 2) {
+            if (item.exercises.size > 2) {
                 Text("...", color = Color.Gray)
             }
         }

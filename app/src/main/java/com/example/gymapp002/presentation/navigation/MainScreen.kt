@@ -44,7 +44,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
     )
 
     Scaffold(
-        modifier = modifier, // Parametreden gelen modifier'ı buraya verelim
+        modifier = modifier,
         bottomBar = {
             NavigationBar(
                 containerColor = MainColorScheme.surface,
@@ -54,7 +54,6 @@ fun MainScreen(modifier: Modifier = Modifier) {
                 val currentDestination = navBackStackEntry?.destination
 
                 bottomBarScreens.forEach { screen ->
-                    // Seçili olma durumu kontrolü
                     val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
 
                     NavigationBarItem(
@@ -87,23 +86,29 @@ fun MainScreen(modifier: Modifier = Modifier) {
             }
         }
     ) { innerPadding ->
-        // Navigasyon Yöneticisi
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            // 1. HOME
-            composable(Screen.Home.route) { HomeScreen() }
-
-//            // 2. WORKOUT
-//            composable(Screen.Workout.route) {
-//                WorkoutScreen(
-//                    onNavigateToCreateWorkout = {
-//                        navController.navigate(Screen.CreateWorkout.route)
-//                    }
-//                )
-//            }
+            // 1. HOME (GÜNCELLENDİ: Buton bağlantıları yapıldı)
+            composable(Screen.Home.route) {
+                HomeScreen(
+                    onNavigateToProfile = {
+                        // Ana sayfadan Profile geçiş yaparken alt menü mantığını koruyoruz
+                        navController.navigate(Screen.Profile.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToCreateWorkout = {
+                        navController.navigate(Screen.CreateWorkout.route)
+                    }
+                )
+            }
 
             // 2. WORKOUT
             composable(Screen.Workout.route) {
@@ -112,7 +117,6 @@ fun MainScreen(modifier: Modifier = Modifier) {
                         navController.navigate(Screen.CreateWorkout.route)
                     },
                     onNavigateToDetail = { workoutId ->
-                        // Detay sayfasına ID ile git: "workout_detail/5"
                         navController.navigate("workout_detail/$workoutId")
                     }
                 )
@@ -134,7 +138,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
 
             // 6. WORKOUT DETAIL (ID Parametreli Ekran)
             composable(
-                route = Screen.WorkoutDetail.route, // "workout_detail/{workoutId}"
+                route = Screen.WorkoutDetail.route,
                 arguments = listOf(
                     navArgument("workoutId") { type = NavType.IntType }
                 )

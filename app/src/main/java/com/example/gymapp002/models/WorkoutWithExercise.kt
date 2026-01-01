@@ -1,5 +1,6 @@
 package com.example.gymapp002.data.local.entity
 
+import com.example.gymapp002.data.local.entity.ExerciseEntity as Exercise
 import androidx.room.Embedded
 import androidx.room.Junction
 import androidx.room.Relation

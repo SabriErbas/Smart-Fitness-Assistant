@@ -1,19 +1,18 @@
 package com.example.gymapp002.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,9 +21,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gymapp002.data.local.entity.Exercise
+import com.example.gymapp002.data.local.entity.ExerciseEntity
 import com.example.gymapp002.data.local.entity.WorkoutWithExercises
 import com.example.gymapp002.ui.AppViewModelProvider
+import com.example.gymapp002.ui.components.ExerciseInfoDialog // Import Eklendi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,8 +32,18 @@ fun WorkoutDetailScreen(
     onBackClick: () -> Unit,
     viewModel: WorkoutDetailViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
-    // ViewModel'den veriyi dinliyoruz
     val workoutDetail by viewModel.workoutDetails.collectAsState()
+
+    // YENİ: Seçili egzersizi tutan state (Null ise dialog kapalı)
+    var selectedExercise by remember { mutableStateOf<ExerciseEntity?>(null) }
+
+    // DİALOG KONTROLÜ
+    if (selectedExercise != null) {
+        ExerciseInfoDialog(
+            exercise = selectedExercise!!,
+            onDismiss = { selectedExercise = null }
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -49,9 +59,8 @@ fun WorkoutDetailScreen(
             )
         },
         floatingActionButton = {
-            // BAŞLAT BUTONU
             ExtendedFloatingActionButton(
-                onClick = { /* İleride Antrenman Moduna Geçeceğiz */ },
+                onClick = { /* Antrenman Modu (Sonraki Faz) */ },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = Color.Black,
                 icon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
@@ -59,9 +68,6 @@ fun WorkoutDetailScreen(
             )
         }
     ) { paddingValues ->
-
-        // Veri yüklenene kadar boş ekran veya loading dönebiliriz.
-        // workoutDetail null değilse içeriği göster:
         workoutDetail?.let { detail ->
             Column(
                 modifier = Modifier
@@ -69,12 +75,10 @@ fun WorkoutDetailScreen(
                     .padding(paddingValues)
                     .padding(horizontal = 24.dp)
             ) {
-                // 1. BAŞLIK VE BİLGİ KARTI
                 WorkoutHeader(detail)
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 2. EGZERSİZ LİSTESİ
                 Text(
                     text = "Egzersizler (${detail.exercises.size})",
                     style = MaterialTheme.typography.titleMedium,
@@ -85,18 +89,19 @@ fun WorkoutDetailScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 LazyColumn(
-                    contentPadding = PaddingValues(bottom = 100.dp), // FAB altında kalmasın
+                    contentPadding = PaddingValues(bottom = 100.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(detail.exercises) { exercise ->
-                        // Hangi set/tekrar olduğunu bulmak için crossRef listesine bakmak gerekebilir
-                        // Şimdilik basitçe egzersizi gösterelim
-                        DetailExerciseCard(exercise)
+                        DetailExerciseCard(
+                            exercise = exercise,
+                            // Tıklanınca state'i güncelle
+                            onClick = { selectedExercise = exercise }
+                        )
                     }
                 }
             }
         } ?: run {
-            // Yükleniyor durumu
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
@@ -118,33 +123,41 @@ fun WorkoutHeader(detail: WorkoutWithExercises) {
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(8.dp))
+
+            // Eğer açıklama varsa göster (Yeni özellik)
+            if (detail.workout.description.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = detail.workout.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.LightGray
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Timer, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = detail.workout.duration,
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(text = detail.workout.duration, color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = "•  ${detail.workout.difficulty}",
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(text = "•  ${detail.workout.difficulty}", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
 }
 
 @Composable
-fun DetailExerciseCard(exercise: Exercise) {
+fun DetailExerciseCard(
+    exercise: ExerciseEntity,
+    onClick: () -> Unit // Tıklama özelliği eklendi
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable { onClick() } // Tıklanabilir alan
             .padding(12.dp)
     ) {
         // Görsel / Numara Alanı
@@ -165,9 +178,16 @@ fun DetailExerciseCard(exercise: Exercise) {
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(exercise.name, color = Color.White, fontWeight = FontWeight.SemiBold)
             Text(exercise.muscleGroup, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
         }
+
+        // Bilgi ikonu (Kullanıcı tıklanabileceğini anlasın diye)
+        Icon(
+            imageVector = Icons.Default.Info,
+            contentDescription = "Detay",
+            tint = Color.DarkGray
+        )
     }
 }

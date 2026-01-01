@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gymapp002.ui.AppViewModelProvider
-import com.example.gymapp002.data.local.entity.Exercise
+import com.example.gymapp002.data.local.entity.ExerciseEntity as Exercise
 
 // Veritabanı tablosunu import ediyoruz
 

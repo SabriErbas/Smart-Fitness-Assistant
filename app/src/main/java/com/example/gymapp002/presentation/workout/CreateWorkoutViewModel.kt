@@ -1,9 +1,8 @@
 package com.example.gymapp002.ui.screens
 
-import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.gymapp002.data.local.entity.Exercise
+import com.example.gymapp002.data.local.entity.ExerciseEntity
 import com.example.gymapp002.data.local.entity.WorkoutEntity
 import com.example.gymapp002.data.local.entity.WorkoutExerciseCrossRef
 import com.example.gymapp002.data.repository.ExerciseRepository
@@ -11,126 +10,214 @@ import com.example.gymapp002.data.repository.WorkoutRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Collections
+import kotlin.math.roundToInt
 
-data class SelectedExerciseState(
-    val exercise: Exercise,
-    var sets: String = "3",
-    var reps: String = "10"
+data class CreateWorkoutUiState(
+    val workoutName: String = "",
+    val difficulty: String = "Intermediate",
+    val calculatedDurationMin: Int = 0,
+
+    // MOLA VE PLANLAMA
+    val restTimeSeconds: Int = 60,
+    val scheduleType: String = "WEEKLY",
+    val selectedDays: Set<Int> = emptySet(),
+    val recurrenceGap: Int = 2,
+
+    val selectedExercises: List<SelectedExerciseItem> = emptyList(),
+    val isSaveEnabled: Boolean = false,
+
+    // YENİ: SEÇİCİ (PICKER) İÇİN STATE
+    val isPickerVisible: Boolean = false,     // Pencere açık mı?
+    val availableExercises: List<ExerciseEntity> = emptyList(), // Tüm egzersizler
+    val filteredExercises: List<ExerciseEntity> = emptyList(),  // Arama sonucu
+    val searchQuery: String = ""             // Arama metni
 )
 
-// YENİ: Planlama Tipi
-enum class ScheduleType {
-    WEEKLY, // Pzt, Çar, Cum gibi
-    CYCLIC  // Her 3 günde bir gibi
-}
+data class SelectedExerciseItem(
+    val exercise: ExerciseEntity,
+    val sets: String = "3",
+    val reps: String = "10"
+)
 
 class CreateWorkoutViewModel(
     private val exerciseRepository: ExerciseRepository,
     private val workoutRepository: WorkoutRepository
 ) : ViewModel() {
 
-    private val _allExercises = MutableStateFlow<List<Exercise>>(emptyList())
-    val allExercises: StateFlow<List<Exercise>> = _allExercises.asStateFlow()
-
-    val selectedExercises = mutableStateListOf<SelectedExerciseState>()
-
-    private val _workoutName = MutableStateFlow("")
-    val workoutName: StateFlow<String> = _workoutName.asStateFlow()
-
-    // --- YENİ EKLENEN PLANLAMA STATE'LERİ ---
-    private val _scheduleType = MutableStateFlow(ScheduleType.WEEKLY)
-    val scheduleType: StateFlow<ScheduleType> = _scheduleType.asStateFlow()
-
-    // Haftalık Mod için seçilen günler (1=Pzt, 7=Paz)
-    val selectedDays = mutableStateListOf<Int>()
-
-    // Döngüsel Mod için gün aralığı (Örn: 3)
-    private val _cycleGap = MutableStateFlow("2") // Varsayılan: 2 günde bir
-    val cycleGap: StateFlow<String> = _cycleGap.asStateFlow()
-    // ----------------------------------------
+    private val _uiState = MutableStateFlow(CreateWorkoutUiState())
+    val uiState: StateFlow<CreateWorkoutUiState> = _uiState.asStateFlow()
 
     init {
+        // ViewModel başladığında veritabanındaki tüm hareketleri yükle
         loadExercises()
     }
 
     private fun loadExercises() {
         viewModelScope.launch {
-            exerciseRepository.allExercises.collectLatest { _allExercises.value = it }
+            try {
+                // Veriyi güvenli bir şekilde çekmeye çalış
+                exerciseRepository.allExercises.collect { allList ->
+                    _uiState.update {
+                        it.copy(
+                            availableExercises = allList,
+                            filteredExercises = allList // Başlangıçta hepsi görünür
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                // Hata olursa logla ama uygulamayı çökertme
+                e.printStackTrace()
+            }
         }
     }
 
-    fun onNameChange(name: String) { _workoutName.value = name }
+    // --- SEÇİCİ PENCERESİ YÖNETİMİ ---
 
-    // Planlama Fonksiyonları
-    fun setScheduleType(type: ScheduleType) { _scheduleType.value = type }
+    fun togglePicker(show: Boolean) {
+        _uiState.update { it.copy(isPickerVisible = show, searchQuery = "") }
+        // Pencere her açıldığında filtreyi sıfırla
+        if (show) filterExercises("")
+    }
+
+    fun updateSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+        filterExercises(query)
+    }
+
+    private fun filterExercises(query: String) {
+        val all = _uiState.value.availableExercises
+        val filtered = if (query.isBlank()) {
+            all
+        } else {
+            all.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                        it.muscleGroup.contains(query, ignoreCase = true)
+            }
+        }
+        _uiState.update { it.copy(filteredExercises = filtered) }
+    }
+
+    // --- MEVCUT FONKSİYONLAR (Aynı) ---
+
+    fun addExercise(exercise: ExerciseEntity) {
+        val newItem = SelectedExerciseItem(exercise)
+        val currentList = _uiState.value.selectedExercises + newItem
+        updateStateWithCalculation(selectedExercises = currentList)
+        // Eklendikten sonra pencereyi kapat
+        togglePicker(false)
+    }
+
+    fun removeExercise(item: SelectedExerciseItem) {
+        val currentList = _uiState.value.selectedExercises - item
+        updateStateWithCalculation(selectedExercises = currentList)
+    }
+
+    fun moveExercise(index: Int, direction: Int) {
+        val currentList = _uiState.value.selectedExercises.toMutableList()
+        val newIndex = index + direction
+        if (newIndex in 0 until currentList.size) {
+            Collections.swap(currentList, index, newIndex)
+            _uiState.update { it.copy(selectedExercises = currentList) }
+        }
+    }
+
+    fun updateName(name: String) {
+        updateStateWithCalculation(workoutName = name)
+    }
+
+    fun updateRestTime(seconds: Int) {
+        updateStateWithCalculation(restTimeSeconds = seconds)
+    }
 
     fun toggleDaySelection(dayIndex: Int) {
-        if (selectedDays.contains(dayIndex)) selectedDays.remove(dayIndex)
-        else selectedDays.add(dayIndex)
+        val currentDays = _uiState.value.selectedDays.toMutableSet()
+        if (currentDays.contains(dayIndex)) currentDays.remove(dayIndex) else currentDays.add(dayIndex)
+        updateStateWithCalculation(selectedDays = currentDays)
     }
 
-    fun onCycleGapChange(gap: String) {
-        // Sadece sayı girilmesini sağla
-        if (gap.all { it.isDigit() }) {
-            _cycleGap.value = gap
+    fun setScheduleType(type: String) {
+        updateStateWithCalculation(scheduleType = type)
+    }
+
+    // Hesaplama ve Kaydetme mantığı aynı...
+    private fun calculateDuration(exercises: List<SelectedExerciseItem>, restTimeSec: Int): Int {
+        if (exercises.isEmpty()) return 0
+        var totalSets = 0
+        exercises.forEach { totalSets += it.sets.toIntOrNull() ?: 3 }
+        val workTimeSec = totalSets * 45
+        val totalRestTimeSec = if (totalSets > 0) (totalSets - 1) * restTimeSec else 0
+        return ((workTimeSec + totalRestTimeSec) / 60.0).roundToInt()
+    }
+
+    private fun updateStateWithCalculation(
+        workoutName: String = _uiState.value.workoutName,
+        selectedExercises: List<SelectedExerciseItem> = _uiState.value.selectedExercises,
+        restTimeSeconds: Int = _uiState.value.restTimeSeconds,
+        scheduleType: String = _uiState.value.scheduleType,
+        selectedDays: Set<Int> = _uiState.value.selectedDays,
+        recurrenceGap: Int = _uiState.value.recurrenceGap
+    ) {
+        val duration = calculateDuration(selectedExercises, restTimeSeconds)
+        val isScheduleValid = if (scheduleType == "WEEKLY") selectedDays.isNotEmpty() else true
+        val isValid = workoutName.isNotBlank() && selectedExercises.isNotEmpty() && isScheduleValid
+
+        _uiState.update {
+            it.copy(
+                workoutName = workoutName,
+                selectedExercises = selectedExercises,
+                restTimeSeconds = restTimeSeconds,
+                calculatedDurationMin = duration,
+                scheduleType = scheduleType,
+                selectedDays = selectedDays,
+                recurrenceGap = recurrenceGap,
+                isSaveEnabled = isValid
+            )
         }
-    }
-
-    fun toggleExerciseSelection(exercise: Exercise) {
-        val exists = selectedExercises.find { it.exercise.exerciseId == exercise.exerciseId }
-        if (exists != null) selectedExercises.remove(exists)
-        else selectedExercises.add(SelectedExerciseState(exercise))
-    }
-
-    fun updateSetsReps(exerciseId: Int, sets: String, reps: String) {
-        val index = selectedExercises.indexOfFirst { it.exercise.exerciseId == exerciseId }
-        if (index != -1) {
-            selectedExercises[index] = selectedExercises[index].copy(sets = sets, reps = reps)
-        }
-    }
-
-    fun removeExercise(exerciseId: Int) {
-        val index = selectedExercises.indexOfFirst { it.exercise.exerciseId == exerciseId }
-        if (index != -1) selectedExercises.removeAt(index)
     }
 
     fun saveWorkout(onSuccess: () -> Unit) {
-        if (_workoutName.value.isBlank() || selectedExercises.isEmpty()) return
-
         viewModelScope.launch {
+            val state = _uiState.value
+            val daysString = state.selectedDays.sorted().joinToString(",")
 
-            // 1. GÜNLERİ FORMATLA
-            // UI'dan gelen liste (Örn: [1, 3]) -> Veritabanı formatına ("1,3") çeviriyoruz
-            val daysString = selectedDays.sorted().joinToString(",")
-
-            // 2. ANTRENMANI OLUŞTUR
             val newWorkout = WorkoutEntity(
-                workoutName = _workoutName.value,
-                difficulty = "Custom",
-                duration = "${selectedExercises.size * 5} dk",
-
-                // --- YENİ VERİLERİ EKLİYORUZ ---
-                scheduleType = _scheduleType.value.name, // "WEEKLY" veya "CYCLIC"
-                recurrenceDays = if (_scheduleType.value == ScheduleType.WEEKLY) daysString else "",
-                recurrenceGap = if (_scheduleType.value == ScheduleType.CYCLIC) (_cycleGap.value.toIntOrNull() ?: 0) else 0
+                workoutName = state.workoutName,
+                difficulty = state.difficulty,
+                duration = "${state.calculatedDurationMin} dk",
+                scheduleType = state.scheduleType,
+                recurrenceDays = daysString,
+                recurrenceGap = state.recurrenceGap,
+                description = "Mola: ${state.restTimeSeconds}sn"
             )
 
-            // 3. CROSS REF (Hareket İlişkileri) - Burası Aynı
-            val crossRefs = selectedExercises.mapIndexed { index, item ->
+            val crossRefs = state.selectedExercises.mapIndexed { index, item ->
                 WorkoutExerciseCrossRef(
                     workoutId = 0,
                     exerciseId = item.exercise.exerciseId,
                     sets = item.sets.toIntOrNull() ?: 3,
                     reps = item.reps,
-                    order = index
+                    order = index + 1
                 )
             }
-
-            // 4. KAYDET
             workoutRepository.createWorkout(newWorkout, crossRefs)
             onSuccess()
+        }
+    }
+
+    // --- EKSİK OLAN FONKSİYON: SET/TEKRAR GÜNCELLEME ---
+    fun updateExerciseDetails(index: Int, sets: String, reps: String) {
+        val currentList = _uiState.value.selectedExercises.toMutableList()
+        if (index in currentList.indices) {
+            // İlgili elemanı kopyala ve yeni değerleri ver
+            val updatedItem = currentList[index].copy(sets = sets, reps = reps)
+            currentList[index] = updatedItem
+
+            // Listeyi güncelle ve SÜREYİ TEKRAR HESAPLA
+            updateStateWithCalculation(selectedExercises = currentList)
         }
     }
 }

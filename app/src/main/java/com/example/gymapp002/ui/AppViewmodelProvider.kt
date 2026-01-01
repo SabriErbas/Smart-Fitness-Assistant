@@ -2,14 +2,14 @@ package com.example.gymapp002.ui
 
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
-import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.gymapp002.GymApplication
 import com.example.gymapp002.data.repository.ExerciseRepository
-// Aşağıdaki importları eklediğinden emin ol (Kırmızı yanarsa Alt+Enter yap)
 import com.example.gymapp002.data.repository.WorkoutRepository
 import com.example.gymapp002.ui.screens.CreateWorkoutViewModel
+import com.example.gymapp002.ui.screens.HomeViewModel
+import com.example.gymapp002.ui.screens.ProfileViewModel
 import com.example.gymapp002.ui.screens.SearchViewModel
 import com.example.gymapp002.ui.screens.WorkoutDetailViewModel
 import com.example.gymapp002.ui.screens.WorkoutViewModel
@@ -17,39 +17,70 @@ import com.example.gymapp002.ui.screens.WorkoutViewModel
 object AppViewModelProvider {
     val Factory = viewModelFactory {
 
-        // 1. SearchViewModel Tarifi (Zaten Vardı)
+        // 1. SearchViewModel
         initializer {
-            val application = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
-            val repository = ExerciseRepository(application.database.exerciseDao())
+            val app = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
+            val repository = ExerciseRepository(app.database.exerciseDao())
             SearchViewModel(repository)
         }
 
-        // 2. CreateWorkoutViewModel Tarifi (EKSİK OLAN BUYDU! 👇)
+        // 2. CreateWorkoutViewModel
         initializer {
-            val application = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
-
-            // ViewModel iki tane Repository istiyor, onları hazırlayıp veriyoruz:
+            val app = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
             CreateWorkoutViewModel(
-                exerciseRepository = ExerciseRepository(application.database.exerciseDao()),
-                workoutRepository = WorkoutRepository(application.database.workoutDao())
+                exerciseRepository = ExerciseRepository(app.database.exerciseDao()),
+                // GÜNCELLENDİ: Artık 3 parametre alıyor
+                workoutRepository = WorkoutRepository(
+                    workoutDao = app.database.workoutDao(),
+                    exerciseDao = app.database.exerciseDao(),
+                    workoutHistoryDao = app.database.workoutHistoryDao()
+                )
             )
         }
 
-        // 3. WorkoutViewModel (YENİ EKLENEN)
+        // 3. WorkoutViewModel
         initializer {
             val app = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
             WorkoutViewModel(
-                workoutRepository = WorkoutRepository(app.database.workoutDao())
+                // GÜNCELLENDİ: Artık 3 parametre alıyor
+                workoutRepository = WorkoutRepository(
+                    workoutDao = app.database.workoutDao(),
+                    exerciseDao = app.database.exerciseDao(),
+                    workoutHistoryDao = app.database.workoutHistoryDao()
+                )
             )
         }
 
-        // 4. WorkoutDetailViewModel (YENİ)
+        // 4. WorkoutDetailViewModel
         initializer {
             val app = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
             WorkoutDetailViewModel(
-                savedStateHandle = this.createSavedStateHandle(), // Adresteki ID'yi yakalamak için şart
-                workoutRepository = WorkoutRepository(app.database.workoutDao())
+                savedStateHandle = this.createSavedStateHandle(),
+                // GÜNCELLENDİ: Artık 3 parametre alıyor
+                workoutRepository = WorkoutRepository(
+                    workoutDao = app.database.workoutDao(),
+                    exerciseDao = app.database.exerciseDao(),
+                    workoutHistoryDao = app.database.workoutHistoryDao()
+                )
             )
+        }
+
+        // 5. HomeViewModel
+        initializer {
+            val app = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymApplication)
+            HomeViewModel(
+                // GÜNCELLENDİ: Artık 3 parametre alıyor
+                workoutRepository = WorkoutRepository(
+                    workoutDao = app.database.workoutDao(),
+                    exerciseDao = app.database.exerciseDao(),
+                    workoutHistoryDao = app.database.workoutHistoryDao()
+                )
+            )
+        }
+
+        // 6. ProfileViewModel
+        initializer {
+            ProfileViewModel()
         }
     }
 }
