@@ -41,6 +41,8 @@ fun ActiveWorkoutScreen(
     // --- OYUN STATE'LERİ (YENİ EKLENDİ) ---
     var showGame by remember { mutableStateOf(false) }
     var activeGameExerciseName by remember { mutableStateOf("") }
+
+    var activeGameExerciseId by remember { mutableIntStateOf(-1) }
     // -------------------------------------
 
     val minutes = uiState.timerSeconds / 60
@@ -52,9 +54,14 @@ fun ActiveWorkoutScreen(
         GameOverlay(
             exerciseName = activeGameExerciseName,
             onDismiss = { showGame = false },
-            onScoreUpdate = { score ->
-                // İleride buraya skor kaydetme mantığı ekleyebiliriz
-                println("Oyun Bitti! Skor: $score")
+            onGameFinished = { score, reps ->
+                println("Oyun Bitti! Skor: $score, Tekrar: $reps")
+
+                // Gelen tekrar sayısını ViewModel'e gönderip kaydediyoruz
+                if (activeGameExerciseId != -1 && reps > 0) {
+                    viewModel.updateRepsFromGame(activeGameExerciseId, reps)
+                }
+
                 showGame = false
             }
         )
@@ -124,7 +131,8 @@ fun ActiveWorkoutScreen(
                                 viewModel.toggleSetComplete(exerciseDetail.exercise.exerciseId, index)
                             },
                             onGameClick = {
-                                // --- OYUNU BAŞLATMA LOGİĞİ (GÜNCELLENDİ) ---
+                                // ID'yi kaydetmeyi unutma! (Bu satır eksikse çalışmaz)
+                                activeGameExerciseId = exerciseDetail.exercise.exerciseId
                                 activeGameExerciseName = exerciseDetail.exercise.name
                                 showGame = true
                             }

@@ -181,4 +181,29 @@ class ActiveWorkoutViewModel(
         super.onCleared()
         timerJob?.cancel()
     }
+
+    // --- OYUNDAN GELEN VERİYİ KAYDET ---
+    fun updateRepsFromGame(exerciseId: Int, detectedReps: Int) {
+        val currentMap = _uiState.value.setList.toMutableMap()
+        val sets = currentMap[exerciseId]?.toMutableList() ?: return
+
+        // 1. Henüz tamamlanmamış (tiklenmemiş) ilk seti bul
+        val targetSetIndex = sets.indexOfFirst { !it.isCompleted }
+
+        if (targetSetIndex != -1) {
+            // 2. O setin Tekrar (Reps) kısmını güncelle
+            val currentSet = sets[targetSetIndex]
+            val updatedSet = currentSet.copy(
+                reps = detectedReps.toString()
+                // İstersen burada 'isCompleted = true' yaparak seti otomatik tikleyebiliriz,
+                // ama kullanıcı kilosunu girmek isteyebilir, o yüzden tiklemeyelim.
+            )
+            sets[targetSetIndex] = updatedSet
+
+            // 3. UI'ı güncelle
+            currentMap[exerciseId] = sets
+            _uiState.update { it.copy(setList = currentMap) }
+        }
+    }
 }
+
