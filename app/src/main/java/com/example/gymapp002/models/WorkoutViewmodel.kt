@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -23,22 +24,32 @@ class WorkoutViewModel(
     private val _selectedDate = MutableStateFlow(LocalDate.now())
     val selectedDate: StateFlow<LocalDate> = _selectedDate
 
-    // 2. Veritabanındaki TÜM antrenmanlar (Repository'den gelen ham veri)
+    // 2. Veritabanındaki TÜM antrenmanlar (Ham veri)
     private val allWorkouts = workoutRepository.allWorkouts
 
-    // --- YENİ EKLENEN KISIM (KÜTÜPHANE LİSTESİ) ---
-    // "Antrenman" sekmesinde tüm listeyi göstermek için bunu kullanacağız.
-    // Filtreleme yapmadan direkt veritabanındaki her şeyi verir.
-    val libraryWorkouts: StateFlow<List<WorkoutWithExercises>> = allWorkouts
+    // --- YENİ: KÜTÜPHANEYİ İKİYE BÖLÜYORUZ ---
+
+    // A. Kullanıcının Kendi Oluşturdukları (isSystemWorkout = false)
+    val userLibraryWorkouts: StateFlow<List<WorkoutWithExercises>> = allWorkouts
+        .map { list -> list.filter { !it.workout.isSystemWorkout } }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    // B. Sistemin Hazır Programları (isSystemWorkout = true)
+    val systemLibraryWorkouts: StateFlow<List<WorkoutWithExercises>> = allWorkouts
+        .map { list -> list.filter { it.workout.isSystemWorkout } }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     // -----------------------------------------------
 
-    // 3. GÜNLÜK PLAN (Filtrelenmiş Liste)
-    // Tarih değiştikçe veya yeni antrenman eklendikçe burası otomatik hesaplanır.
+    // 3. GÜNLÜK PLAN (Takvim Mantığı - AYNI KALDI)
     val dailyPlan: StateFlow<List<WorkoutWithExercises>> = combine(_selectedDate, allWorkouts) { date, workouts ->
         filterWorkoutsForDate(date, workouts)
     }.stateIn(
@@ -52,31 +63,24 @@ class WorkoutViewModel(
         _selectedDate.value = date
     }
 
-    // --- FİLTRELEME MANTIĞI ---
+    // --- FİLTRELEME MANTIĞI (AYNI KALDI) ---
     private fun filterWorkoutsForDate(date: LocalDate, workouts: List<WorkoutWithExercises>): List<WorkoutWithExercises> {
-        // Seçilen günün indexi (Pzt=1, Sal=2 ... Paz=7)
         val dayIndex = date.dayOfWeek.value
-
         return workouts.filter { item ->
             val w = item.workout
-
             if (w.scheduleType == "WEEKLY") {
-                // Eğer "1,3,5" string'i içinde bugünün indexi ("1") varsa, listeye ekle.
                 val days = w.recurrenceDays.split(",")
                 days.contains(dayIndex.toString())
             } else {
-                // Döngüsel mantık şimdilik kapalı
                 false
             }
         }
     }
 
-
-    //ekrandan antrenmanların silinmesini sağlayan viewmdel metotu
+    // Silme fonksiyonu
     fun deleteWorkout(workoutId: Int) {
         viewModelScope.launch {
             workoutRepository.deleteWorkout(workoutId)
-            // Silince liste (Flow) sayesinde UI otomatik güncellenir, ekstra bir şeye gerek yok.
         }
     }
 }

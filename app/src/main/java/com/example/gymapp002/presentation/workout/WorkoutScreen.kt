@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
@@ -19,7 +18,6 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,11 +37,15 @@ fun WorkoutScreen(
     viewModel: WorkoutViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("PLAN", "Antrenman") // İsmi 'Antrenman'dan 'Kütüphane'ye çevirdim, daha mantıklı
+    val tabs = listOf("PLAN", "ANTRENMAN")
 
+    // ViewModel'den verileri çekiyoruz
     val selectedDate by viewModel.selectedDate.collectAsState()
     val dailyPlan by viewModel.dailyPlan.collectAsState()
-    val libraryWorkouts by viewModel.libraryWorkouts.collectAsState()
+
+    // YENİ: İki ayrı liste çekiyoruz
+    val userWorkouts by viewModel.userLibraryWorkouts.collectAsState()
+    val systemWorkouts by viewModel.systemLibraryWorkouts.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -67,17 +69,19 @@ fun WorkoutScreen(
                     onCreateClick = onNavigateToCreateWorkout,
                     onWorkoutClick = onNavigateToDetail
                 )
-                1 -> GeneralWorkoutList(
-                    workouts = libraryWorkouts,
+                1 -> LibrarySection(
+                    userWorkouts = userWorkouts,
+                    systemWorkouts = systemWorkouts,
                     onWorkoutClick = onNavigateToDetail,
-                    onDeleteClick = { workoutId -> viewModel.deleteWorkout(workoutId) }
+                    onDeleteClick = { workoutId -> viewModel.deleteWorkout(workoutId) },
+                    onCreateClick = onNavigateToCreateWorkout
                 )
             }
         }
     }
 }
 
-// --- PLAN SEKMESİ (Aynı kaldı) ---
+// --- PLAN SEKMESİ (AYNI) ---
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun UserPlanSection(
@@ -251,30 +255,73 @@ fun CustomTabRow(
     }
 }
 
-// --- KÜTÜPHANE LİSTESİ (SİSTEM MANTIĞI EKLENDİ) ---
+// --- KÜTÜPHANE LİSTESİ (YERLER DEĞİŞTİRİLDİ) ---
 
 @Composable
-fun GeneralWorkoutList(
-    workouts: List<WorkoutWithExercises>,
+fun LibrarySection(
+    userWorkouts: List<WorkoutWithExercises>,
+    systemWorkouts: List<WorkoutWithExercises>,
     onWorkoutClick: (Int) -> Unit,
-    onDeleteClick: (Int) -> Unit
+    onDeleteClick: (Int) -> Unit,
+    onCreateClick: () -> Unit
 ) {
-    if (workouts.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Henüz hiç antrenman yok.", color = Color.Gray)
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // --- 1. BÖLÜM: HAZIR PROGRAMLAR (ARTIK EN ÜSTTE) ---
+        if (systemWorkouts.isNotEmpty()) {
+            item {
+                Text("Hazır Programlar", style = MaterialTheme.typography.titleMedium, color = Color.Gray)
+            }
+            items(systemWorkouts) { item ->
+                LibraryWorkoutCard(
+                    item = item,
+                    onClick = { onWorkoutClick(item.workout.workoutId) },
+                    onDeleteClick = {} // Sistem programları silinemez
+                )
+            }
+            // İki bölüm arasına biraz boşluk
+            item { Spacer(modifier = Modifier.height(24.dp)) }
         }
-    } else {
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(workouts) { item ->
+
+        // --- 2. BÖLÜM: SENİN PLANLARIN (ARTIK ALTTA) ---
+        item {
+            Text("Senin Planların", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        }
+
+        if (userWorkouts.isEmpty()) {
+            item {
+                EmptyLibraryState(onCreateClick)
+            }
+        } else {
+            items(userWorkouts) { item ->
                 LibraryWorkoutCard(
                     item = item,
                     onClick = { onWorkoutClick(item.workout.workoutId) },
                     onDeleteClick = { onDeleteClick(item.workout.workoutId) }
                 )
             }
+        }
+
+        // Listenin en altına ekstra boşluk
+        item { Spacer(modifier = Modifier.height(60.dp)) }
+    }
+}
+
+@Composable
+fun EmptyLibraryState(onCreateClick: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth().clickable { onCreateClick() }
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Henüz kendi planın yok.", color = Color.Gray)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("+ Yeni Plan Oluştur", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -296,7 +343,7 @@ fun LibraryWorkoutCard(
         colors = CardDefaults.cardColors(
             containerColor = if(isSystem) Color(0xFF252525) else MaterialTheme.colorScheme.surface
         ),
-        // Sistem antrenmanlarına hafif bir çerçeve (Border) ekleyelim ki özel olduğu belli olsun
+        // Sistem antrenmanlarına hafif bir çerçeve (Border)
         border = if (isSystem) androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray) else null
     ) {
         Column(
@@ -330,14 +377,12 @@ fun LibraryWorkoutCard(
 
                 // SİLME MANTIĞI BURADA
                 if (isSystem) {
-                    // Sistem antrenmanıysa KİLİT ikonu göster, silme yok
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = "System Workout",
                         tint = Color.DarkGray
                     )
                 } else {
-                    // Kullanıcı antrenmanıysa SİLME butonu göster
                     IconButton(onClick = onDeleteClick) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
