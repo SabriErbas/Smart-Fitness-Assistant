@@ -15,9 +15,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.* // remember, mutableStateOf burada
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gymapp002.data.local.entity.WorkoutDetailItem
 import com.example.gymapp002.ui.AppViewModelProvider
+import com.example.gymapp002.ui.game.GameOverlay // <-- YENİ OYUN IMPORTU
 
 @Composable
 fun ActiveWorkoutScreen(
@@ -39,19 +38,35 @@ fun ActiveWorkoutScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // --- OYUN STATE'LERİ (YENİ EKLENDİ) ---
+    var showGame by remember { mutableStateOf(false) }
+    var activeGameExerciseName by remember { mutableStateOf("") }
+    // -------------------------------------
+
     val minutes = uiState.timerSeconds / 60
     val seconds = uiState.timerSeconds % 60
     val timeFormatted = String.format("%02d:%02d", minutes, seconds)
 
+    // --- OYUN KATMANI (Eğer butona basıldıysa açılır) ---
+    if (showGame) {
+        GameOverlay(
+            exerciseName = activeGameExerciseName,
+            onDismiss = { showGame = false },
+            onScoreUpdate = { score ->
+                // İleride buraya skor kaydetme mantığı ekleyebiliriz
+                println("Oyun Bitti! Skor: $score")
+                showGame = false
+            }
+        )
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            // --- DÜZELTİLEN KISIM BURASI ---
+            // ANTRENMANI BİTİR BUTONU
             Button(
                 onClick = {
-                    // Önce ViewModel'deki kayıt fonksiyonunu çağırıyoruz
                     viewModel.finishWorkout {
-                        // Kayıt başarılı olunca ekranı kapatıyoruz
                         onFinishClick()
                     }
                 },
@@ -66,7 +81,6 @@ fun ActiveWorkoutScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("ANTRENMANI BİTİR", fontWeight = FontWeight.Bold)
             }
-            // -------------------------------
         }
     ) { paddingValues ->
         Column(
@@ -110,7 +124,9 @@ fun ActiveWorkoutScreen(
                                 viewModel.toggleSetComplete(exerciseDetail.exercise.exerciseId, index)
                             },
                             onGameClick = {
-                                println("Oyun Başlatıldı: ${exerciseDetail.exercise.name}")
+                                // --- OYUNU BAŞLATMA LOGİĞİ (GÜNCELLENDİ) ---
+                                activeGameExerciseName = exerciseDetail.exercise.name
+                                showGame = true
                             }
                         )
                     }
@@ -120,8 +136,8 @@ fun ActiveWorkoutScreen(
     }
 }
 
-// ... (Geri kalan TimerHeader, ExerciseLoggingCard ve CompactInput fonksiyonları aynı kalabilir) ...
-// Eğer eksikse aşağıya ekleyebilirim ama zaten paylaşmıştın.
+// ... (TimerHeader, ExerciseLoggingCard ve CompactInput fonksiyonları AYNEN kalabilir, aşağıda tekrar veriyorum tam olsun diye) ...
+
 @Composable
 fun TimerHeader(title: String, time: String, isPaused: Boolean, onPauseToggle: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
