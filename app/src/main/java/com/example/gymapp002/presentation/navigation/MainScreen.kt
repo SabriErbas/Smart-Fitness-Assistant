@@ -13,8 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -22,6 +22,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.gymapp002.ui.navigation.Screen
+import com.example.gymapp002.ui.screens.ActiveWorkoutScreen
 import com.example.gymapp002.ui.screens.CreateWorkoutScreen
 import com.example.gymapp002.ui.screens.HomeScreen
 import com.example.gymapp002.ui.screens.ProfileScreen
@@ -91,11 +92,10 @@ fun MainScreen(modifier: Modifier = Modifier) {
             startDestination = Screen.Home.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            // 1. HOME (GÜNCELLENDİ: Buton bağlantıları yapıldı)
+            // 1. HOME (GÜNCELLENDİ)
             composable(Screen.Home.route) {
                 HomeScreen(
                     onNavigateToProfile = {
-                        // Ana sayfadan Profile geçiş yaparken alt menü mantığını koruyoruz
                         navController.navigate(Screen.Profile.route) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
@@ -106,7 +106,13 @@ fun MainScreen(modifier: Modifier = Modifier) {
                     },
                     onNavigateToCreateWorkout = {
                         navController.navigate(Screen.CreateWorkout.route)
+                    },
+                    // --- EKLENEN KISIM BURASI ---
+                    // Ana ekrandaki "Bugünün Görevi" kartındaki Başlat butonuna basınca burası çalışır
+                    onNavigateToActiveWorkout = { workoutId ->
+                        navController.navigate("active_workout/$workoutId")
                     }
+                    // ----------------------------
                 )
             }
 
@@ -136,15 +142,30 @@ fun MainScreen(modifier: Modifier = Modifier) {
                 )
             }
 
-            // 6. WORKOUT DETAIL (ID Parametreli Ekran)
+            // 6. WORKOUT DETAIL
             composable(
-                route = Screen.WorkoutDetail.route,
-                arguments = listOf(
-                    navArgument("workoutId") { type = NavType.IntType }
-                )
+                route = Screen.WorkoutDetail.route, // "workout_detail/{workoutId}"
+                arguments = listOf(navArgument("workoutId") { type = NavType.IntType })
             ) {
                 WorkoutDetailScreen(
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    // Detay sayfasından Başlat'a basınca çalışır
+                    onStartWorkout = { workoutId ->
+                        navController.navigate("active_workout/$workoutId")
+                    }
+                )
+            }
+
+            // 7. ACTIVE WORKOUT (YENİ EKRAN)
+            composable(
+                route = Screen.ActiveWorkout.route, // "active_workout/{workoutId}"
+                arguments = listOf(navArgument("workoutId") { type = NavType.IntType })
+            ) {
+                ActiveWorkoutScreen(
+                    onFinishClick = {
+                        // Bitirince Home'a dön
+                        navController.popBackStack(Screen.Home.route, inclusive = false)
+                    }
                 )
             }
         }

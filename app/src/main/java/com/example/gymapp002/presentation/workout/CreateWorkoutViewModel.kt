@@ -1,5 +1,6 @@
 package com.example.gymapp002.ui.screens
 
+import androidx.compose.animation.Crossfade
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gymapp002.data.local.entity.ExerciseEntity
@@ -203,7 +204,7 @@ class CreateWorkoutViewModel(
                     order = index + 1
                 )
             }
-            workoutRepository.createWorkout(newWorkout, crossRefs)
+            workoutRepository.createWorkout(newWorkout, crossRefs = crossRefs)
             onSuccess()
         }
     }

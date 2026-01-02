@@ -5,19 +5,16 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "exercises")
 data class ExerciseEntity(
-    @PrimaryKey(autoGenerate = true)
-    val exerciseId: Int = 0,
+    @PrimaryKey(autoGenerate = true) val exerciseId: Int = 0,
     val name: String,
-    val muscleGroup: String, // Örn: Göğüs, Sırt, Bacak
-    val secondaryMuscles: String = "", // Örn: Triceps, Ön Omuz (Virgülle ayrılmış)
-    val category: String,    // Kuvvet, Kardiyo, Esneme
-    val difficulty: String,  // Beginner, Intermediate, Advanced
-    val equipment: String,   // Barbell, Dumbbell, Machine, Bodyweight
+    val muscleGroup: String,
+    val equipment: String,
+    val difficulty: String,
+    val category: String,
+    val description: String,
 
-    // --- YENİ EKLENEN DETAY ALANLARI ---
-    val description: String, // Detaylı "Nasıl yapılır?" metni
-    val gifUrl: String? = null, // İnternet URL'si veya local resource ismi (şimdilik null geçebiliriz)
-    val tips: String = "",   // "Belini dik tut" gibi ipuçları
-    val videoUrl: String? = null // Youtube linki vs.
+    // --- YENİ EKLENEN ALANLAR ---
+    val isGameEnabled: Boolean = false,       // Bu harekette oyun var mı?
+    val idealWaveform: String = "",           // Python'dan çıkan dizi (Örn: "0.1,0.5,0.9...") String olarak tutalım
+    val gameSensitivity: Float = 1.0f         // Oyun hızı çarpanı
 )
-// Artık sadece basit bir veri değil, dolu dolu bir ansiklopedi maddesi gibi.

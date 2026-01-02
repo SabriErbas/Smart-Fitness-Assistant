@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Home
@@ -19,7 +20,7 @@ sealed class Screen(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
 ) {
-    // 1. HOME EKRANI
+    // 1. HOME
     object Home : Screen(
         route = "home",
         title = "Home",
@@ -27,7 +28,7 @@ sealed class Screen(
         unselectedIcon = Icons.Outlined.Home
     )
 
-    // 2. WORKOUT (PLAN) EKRANI
+    // 2. WORKOUT
     object Workout : Screen(
         route = "workout",
         title = "Workout",
@@ -35,7 +36,7 @@ sealed class Screen(
         unselectedIcon = Icons.Outlined.DateRange
     )
 
-    // 3. SCAN (SEARCH) EKRANI
+    // 3. SCAN
     object Scan : Screen(
         route = "scan",
         title = "Scan",
@@ -43,7 +44,7 @@ sealed class Screen(
         unselectedIcon = Icons.Outlined.Search
     )
 
-    // 4. PROFILE EKRANI
+    // 4. PROFILE
     object Profile : Screen(
         route = "profile",
         title = "Profile",
@@ -51,9 +52,9 @@ sealed class Screen(
         unselectedIcon = Icons.Outlined.Person
     )
 
-    // 5. CREATE WORKOUT (GİZLİ EKRAN)
-    // Bu ekran BottomBar'da görünmeyeceği için ikonları rastgele verebiliriz,
-    // ancak route kısmı ("create_workout") MainScreen'deki NavHost ile birebir aynı olmalı.
+    // --- GİZLİ EKRANLAR (BottomBar'da görünmez) ---
+
+    // 5. CREATE WORKOUT
     object CreateWorkout : Screen(
         route = "create_workout",
         title = "Create Workout",
@@ -61,11 +62,19 @@ sealed class Screen(
         unselectedIcon = Icons.Filled.Add
     )
 
-    // {workoutId} kısmı bir değişkendir. Buraya ID gelecek.
+    // 6. WORKOUT DETAIL (Antrenman Detayı)
     object WorkoutDetail : Screen(
         route = "workout_detail/{workoutId}",
         title = "Workout Detail",
-        selectedIcon = Icons.Filled.DateRange, // İkonlar çok önemli değil burada
+        selectedIcon = Icons.Filled.DateRange,
         unselectedIcon = Icons.Filled.DateRange
+    )
+
+    // 7. ACTIVE WORKOUT (Aktif Antrenman Modu - YENİ)
+    object ActiveWorkout : Screen(
+        route = "active_workout/{workoutId}",
+        title = "Active Workout",
+        selectedIcon = Icons.Filled.PlayArrow,
+        unselectedIcon = Icons.Filled.PlayArrow
     )
 }

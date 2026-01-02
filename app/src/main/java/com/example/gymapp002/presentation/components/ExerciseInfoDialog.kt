@@ -117,7 +117,7 @@ fun ExerciseInfoDialog(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     // 4. İPUÇLARI (Varsa)
-                    if (exercise.tips.isNotEmpty()) {
+                    if (exercise.description.isNotEmpty()) {
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A)),
                             shape = RoundedCornerShape(12.dp),
@@ -130,7 +130,7 @@ fun ExerciseInfoDialog(
                                 Icon(Icons.Default.Lightbulb, contentDescription = null, tint = Color(0xFFFFC107))
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(
-                                    text = exercise.tips,
+                                    text = exercise.description,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color.LightGray
                                 )

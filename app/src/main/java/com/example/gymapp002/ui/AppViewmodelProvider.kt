@@ -1,12 +1,14 @@
 package com.example.gymapp002.ui
 
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.gymapp002.GymApplication
 import com.example.gymapp002.data.repository.ExerciseRepository
 import com.example.gymapp002.data.repository.WorkoutRepository
+import com.example.gymapp002.ui.screens.ActiveWorkoutViewModel
 import com.example.gymapp002.ui.screens.CreateWorkoutViewModel
 import com.example.gymapp002.ui.screens.HomeViewModel
 import com.example.gymapp002.ui.screens.ProfileViewModel
@@ -81,6 +83,19 @@ object AppViewModelProvider {
         // 6. ProfileViewModel
         initializer {
             ProfileViewModel()
+        }
+
+        // 7. ActiveWorkoutViewModel (Antrenman Modu)
+        initializer {
+            val app = (this[APPLICATION_KEY] as GymApplication)
+            ActiveWorkoutViewModel(
+                savedStateHandle = this.createSavedStateHandle(),
+                workoutRepository = WorkoutRepository(
+                    app.database.workoutDao(),
+                    app.database.exerciseDao(),
+                    app.database.workoutHistoryDao()
+                )
+            )
         }
     }
 }

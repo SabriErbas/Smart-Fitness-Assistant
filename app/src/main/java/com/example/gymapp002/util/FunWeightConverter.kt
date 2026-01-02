@@ -31,7 +31,7 @@ object FunWeightConverter {
      * Toplam ağırlığı (Volume) alır, en uygun nesneye çevirir.
      * Örn: 900 kg kaldırdıysa, 850 kg (Tofaş) sonucunu döner.
      */
-    fun convert(totalVolumeKg: Int): FunWeightResult {
+    fun convert(totalVolumeKg: Double): FunWeightResult {
         // Verilen kilodan küçük veya eşit olan en büyük eşik değerini bul
         // (Floor Entry mantığı)
         val match = milestones.filterKeys { it <= totalVolumeKg }
