@@ -1,162 +1,162 @@
-# 🏋️ Akıllı Fitness Antrenörü
+# 🏋️ Smart Fitness Trainer
 
-> **AI destekli görüntü işleme + IoT sensör füzyonu ile çalışan, cihaz üzerinde (on-device) gerçek zamanlı fitness asistanı.**
-
----
-
-## 📌 Proje Hakkında
-
-**Akıllı Fitness Antrenörü**, kullanıcının telefon kamerasını bir fitness aletine doğrultmasıyla o aleti milisaniyeler içinde tanıyan, kullanım yönergelerini ekrana getiren ve harici IoT sensörleri aracılığıyla hareket formunu anlık olarak analiz eden bir Android uygulamasıdır.
-
-### Çözdüğü Problemler
-
-- 🤔 **"Bunu nasıl kullanıyorum?"** — Karmaşık makinelerin kullanımını bilmeme ve spor salonunda yanlış yapma kaygısı
-- 🤕 **Sakatlanma riski** — Hatalı form veya aletin yanlış kullanımından kaynaklanan yaralanmalar
-- ⏱️ **Tempo kaybı** — Hangi aletin hangi kası çalıştırdığını araştırmak için harcanan vakit
+> **A real-time, on-device fitness assistant powered by AI-driven computer vision and IoT sensor fusion.**
 
 ---
 
-## 🧠 Mimari & Teknoloji Yığını
+## 📌 About the Project
 
-### 📱 Mobil Uygulama Katmanı
+**Smart Fitness Trainer** is an Android application that recognizes gym equipment within milliseconds by pointing the phone camera at it, instantly displays usage instructions, and analyzes the user's movement form in real time through external IoT sensors.
 
-| Bileşen | Teknoloji | Neden? |
+### Problems It Solves
+
+- 🤔 **"How do I use this?"** — Not knowing how to operate complex machines and the anxiety of doing it wrong at the gym
+- 🤕 **Injury risk** — Injuries caused by poor form or incorrect use of equipment
+- ⏱️ **Wasted time** — Time spent figuring out which machine targets which muscle group
+
+---
+
+## 🧠 Architecture & Tech Stack
+
+### 📱 Mobile Application Layer
+
+| Component | Technology | Why? |
 |---|---|---|
-| Platform | **Native Android + Kotlin** | Donanım hakimiyeti ve düşük gecikme |
-| UI Framework | **Jetpack Compose** | Saniyede defalarca güncellenen AI/sensör verisi için deklaratif state yönetimi |
-| Mimari Desen | **MVVM** | İş mantığı ile UI'yı birbirinden izole eder |
-| Asenkron İşlemler | **Kotlin Coroutines & Flow** | Bluetooth dinleme ve kamera akışı için ana thread'i boşaltır |
-| Yerel Veritabanı | **Room Database** | Antrenman geçmişi ve kullanıcı verisi |
+| Platform | **Native Android + Kotlin** | Full hardware control and minimal latency |
+| UI Framework | **Jetpack Compose** | Declarative state management for AI/sensor data updating dozens of times per second |
+| Architecture Pattern | **MVVM** | Isolates business logic from the UI layer |
+| Async Operations | **Kotlin Coroutines & Flow** | Offloads Bluetooth listening and camera stream from the main thread |
+| Local Database | **Room Database** | Workout history and user data persistence |
 
 ---
 
-### 🤖 AI & Görüntü İşleme Katmanı
+### 🤖 AI & Computer Vision Layer
 
 ```
-Kamera Döngüsü → CameraX → Frame Hazırlama → TFLite Modeli → Sınıf Skoru → UI
+Camera Loop → CameraX → Frame Preparation → TFLite Model → Class Score → UI
 ```
 
-| Bileşen | Teknoloji | Detay |
+| Component | Technology | Detail |
 |---|---|---|
-| Kamera API | **CameraX** | ~30 FPS, AI'ya uygun frame hazırlama |
-| AI Motor | **TensorFlow Lite (.tflite)** | Sunucusuz, tamamen cihaz üzerinde çalışır (Edge Computing) |
-| Optimizasyon | **Quantization** | Model sıkıştırılarak mobil işlemci yükü minimize edildi |
-| Girdi Formatı | RGB → 224×224 px → ByteBuffer | Standart MobileNet pipeline |
+| Camera API | **CameraX** | ~30 FPS capture, frame preparation for AI inference |
+| AI Engine | **TensorFlow Lite (.tflite)** | Fully on-device inference, no server required (Edge Computing) |
+| Optimization | **Quantization** | Model compressed to minimize mobile CPU load |
+| Input Format | RGB → 224×224 px → ByteBuffer | Standard MobileNet pipeline |
 
-**Tanınan Fitness Aletleri:**
+**Recognized Gym Equipment:**
 - Preacher Curl
 - Leg Extension
 - Lat Pull Down
 - T-Row
 
-> ⚠️ **Not:** Model şu an 4 pozitif sınıf içermektedir. `Other/Background` negatif sınıfı bir sonraki fazda eklenerek false positive oranı düşürülecektir.
+> ⚠️ **Note:** The current model contains 4 positive classes only. An `Other/Background` negative class will be added in the next phase to reduce false positive detections.
 
 ---
 
-### ⚙️ IoT & Oyunlaştırma Katmanı
+### ⚙️ IoT & Gamification Layer
 
 ```
-Sensörler → ESP32-S3 (On-Chip Filtreleme) → BLE 5.0 → Android App → Gerçek Zamanlı UI
+Sensors → ESP32-S3 (On-Chip Filtering) → BLE 5.0 → Android App → Real-Time UI
 ```
 
-| Bileşen | Teknoloji | Görev |
+| Component | Technology | Role |
 |---|---|---|
-| Mikrodenetleyici | **ESP32-S3** (çift çekirdek) | Dahili BLE 5.0, yüksek işlem gücü |
-| Mesafe Ölçümü | **Ultrasonik Sensör** | Hareket genliği ve tekrar sayımı |
-| Sarsıntı/Açı | **Jiroskop** | Form bozukluğu tespiti |
-| İletişim | **Bluetooth Low Energy (BLE)** | Düşük gecikmeli, pil dostu veri aktarımı |
+| Microcontroller | **ESP32-S3** (dual-core) | Built-in BLE 5.0, high processing power |
+| Distance Measurement | **Ultrasonic Sensor** | Range of motion and rep counting |
+| Vibration / Angle | **Gyroscope** | Form deviation detection |
+| Communication | **Bluetooth Low Energy (BLE)** | Low-latency, battery-friendly data transfer |
 
 ---
 
-## 🎮 Sistemin Çalışma Akışı
+## 🎮 System Workflow
 
-### Akış 1 — AI Makine Tanıma
-
-```
-1. CameraX → ~30 FPS yakalanır
-2. Frame → RGB dönüşüm → 224x224 px yeniden ölçekleme → ByteBuffer
-3. TFLite modeli → 4 sınıf için [0.0 – 1.0] olasılık üretir
-4. Güven eşiği: Threshold > %80 (ardışık karelerde tutarlı)
-5. Eşik aşılırsa → UI güncellenir, eğitim videosu açılır
-```
-
-### Akış 2 — IoT Oyunlaştırma
+### Pipeline 1 — AI Equipment Recognition
 
 ```
-1. Kalibrasyon: İlk tekrar ultrasonik sensörle ölçülür → [0.0 – 1.0] normalize
-2. On-Chip Processing: ESP32, ham sensör verisini filtreler → tek anlamlı BLE paketi
-3. Hedef Takibi: Uygulamada "İdeal Referans Dalgası" (sinüs formu) akar
-4. Kullanıcı, kendi hareket çizgisini bu ideal dalganın üstüne oturtmaya çalışır
+1. CameraX captures ~30 FPS
+2. Frame → RGB conversion → 224×224 px rescaling → ByteBuffer
+3. TFLite model produces probability scores [0.0 – 1.0] for each of the 4 classes
+4. Confidence threshold: > 80% sustained across consecutive frames
+5. Threshold met → UI updates and training video is launched
+```
+
+### Pipeline 2 — IoT Gamification
+
+```
+1. Calibration: First rep is measured by the ultrasonic sensor → normalized to [0.0 – 1.0]
+2. On-Chip Processing: ESP32 filters hundreds of raw sensor readings → sends one clean BLE packet
+3. Target Tracking: An "Ideal Reference Wave" (sine curve) built from professional trainer data flows on screen
+4. User tries to align their live movement curve on top of the ideal wave
 ```
 
 ---
 
-## 🚀 Kurulum
+## 🚀 Getting Started
 
-### Gereksinimler
+### Requirements
 
-- Android Studio (Jetpack Compose uyumlu)
+- Android Studio (Jetpack Compose compatible)
 - JDK 17
-- KVM donanım hızlandırması
-- **Fiziksel Android cihaz** (BLE testleri için zorunlu)
-- ESP32-S3 geliştirme kartı + Ultrasonik sensör + Jiroskop kalkanı
+- KVM hardware acceleration
+- **Physical Android device** (required for BLE testing)
+- ESP32-S3 development board + Ultrasonic sensor + Gyroscope shield
 
-### Android Uygulamasını Derleme
+### Building the Android App
 
 ```bash
-# Repoyu klonla
-git clone https://github.com/kullanici-adi/akilli-fitness-antrenoru.git
-cd akilli-fitness-antrenoru
+# Clone the repository
+git clone https://github.com/SabriErbas/Smart-Fitness-Trainer.git
+cd smart-fitness-trainer
 
-# Debug APK derle
+# Build debug APK
 ./gradlew clean assembleDebug
 ```
 
-### ESP32-S3 Donanım Kurulumu
+### ESP32-S3 Hardware Setup
 
-Mikrodenetleyiciye yazılmış C/C++ firmware aşağıdaki görevleri üstlenir:
+The C/C++ firmware flashed onto the microcontroller handles:
 
-1. Ultrasonik sensör ve jiroskoptan ham veri okuma
-2. Gürültü filtreleme (Noise Filtering)
-3. İşlenmiş veriyi BLE GATT Notify karakteristiği üzerinden yayınlama
+1. Reading raw data from the ultrasonic sensor and gyroscope
+2. Noise filtering on-chip
+3. Broadcasting the processed data via BLE GATT Notify characteristic
 
-Firmware'i ESP32-S3'e flaşlamak için [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/) veya Arduino IDE kullanılabilir.
-
----
-
-## 🗺️ Yol Haritası
-
-### ✅ Tamamlanan
-- [x] TFLite ile 4 aletin cihaz üzerinde tanınması
-- [x] ESP32-S3 + BLE ile anlık sensör veri akışı
-- [x] İdeal referans dalgasıyla hareket karşılaştırma (oyunlaştırma)
-- [ ] Daha fazla fitness aleti için model genişletme
-
-### 🤖 AI & Görüntü İşleme
-
-- [ ] **Negatif Sınıf (Background Class) Entegrasyonu** — Veri setine ilgisiz nesneler ve boş salon görüntülerinden oluşan güçlü bir `Other/Background` sınıfı eklenip model yeniden eğitilecek. Sistemin şu an her nesneyi 4 aletten birine benzetmesinin (False Positive) önüne geçilecek.
-- [ ] **On-Device Pose Estimation** — MediaPipe veya MoveNet gibi hafif edge modelleriyle kullanıcının iskelet yapısı (skeleton tracking) kamera akışı üzerinden gerçek zamanlı analiz edilecek. Omuz açısı, bel bükülmesi gibi form bozuklukları doğrudan görsel veriden yakalanabilecek.
-- [ ] **Edge NLP ile Çevrimdışı Sesli Komut** — Antrenman esnasında terli ellerle telefona dokunma sorununu ortadan kaldırmak için TFLite tabanlı küçük NLP modelleri entegre edilecek. *"Seti bitirdim"*, *"Sonraki hareket ne?"* gibi komutlar internet gerektirmeden, sıfır gecikmeyle işlenecek.
-
-### ⚙️ IoT & Donanım
-
-- [ ] **Gelişmiş Sensör Füzyonu (Kalman Filtresi)** — Ham jiroskop ve ivmeölçer verisi basit eşik değerleri yerine matematiksel Kalman Filtresi algoritmasıyla işlenecek. Sensör gürültüsü neredeyse sıfıra indirilerek oyun modülündeki referans dalgası çok daha pürüzsüz akacak.
-- [ ] **Giyilebilir Cihaz (Wearable) Entegrasyonu** — Özel donanım üretme maliyeti ve arıza riskini bertaraf etmek için sensör verisi toplama işi kullanıcının akıllı saatine (Wear OS / Apple Watch) kaydırılacak; BLE üzerinden saatin dahili IMU sensörleri okunacak.
-
-### 📊 Uygulama & UX
-
-- [x] Antrenman geçmişi & ilerleme grafikleri
+Use [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/) or Arduino IDE to flash the firmware onto the ESP32-S3.
 
 ---
 
-## 🛠️ Teknik Notlar
+## 🗺️ Roadmap
 
-> **On-Chip Processing Kararı:** Ham sensör verisi Bluetooth bandına yığılmak yerine ESP32 üzerinde filtrelenmektedir. Bu tercih, uygulama arayüzündeki olası gecikmeleri (lag) kökeninden önler.
+### ✅ Completed
+- [x] On-device recognition of 4 gym machines via TFLite
+- [x] Real-time sensor data streaming with ESP32-S3 + BLE
+- [x] Movement comparison against ideal reference wave (gamification)
 
-> **False Positive Riski:** Mevcut 4 sınıflı model, tanımadığı nesneleri de bu 4 aletten birine zorla eşleştirebilir. Bir sonraki fazda negatif sınıf eklenmesi planlanmaktadır.
+### 🤖 AI & Computer Vision
+
+- [ ] **Background Class Integration** — A robust `Other/Background` negative class will be added to the dataset using irrelevant objects and empty gym footage, then the model will be retrained to eliminate false positive detections.
+- [ ] **On-Device Pose Estimation** — Lightweight edge models such as MediaPipe or MoveNet will be integrated for real-time skeleton tracking via the camera stream, enabling direct detection of form errors like shoulder angle deviation or back rounding.
+- [ ] **Offline Voice Commands via Edge NLP** — TFLite-based compact NLP models will be embedded to eliminate the need for touchscreen interaction during workouts. Commands like *"Set complete"* or *"What's the next exercise?"* will be processed on-device with zero latency and no internet connection.
+- [ ] Expand model to support more gym equipment
+
+### ⚙️ IoT & Hardware
+
+- [ ] **Advanced Sensor Fusion (Kalman Filter)** — Raw gyroscope and accelerometer data will be processed through a Kalman Filter algorithm instead of simple threshold comparisons, reducing sensor noise to near zero and making the gamification reference wave significantly smoother.
+- [ ] **Wearable Device Integration** — To eliminate custom hardware production costs and failure risks, sensor data collection will be offloaded to the user's smartwatch (Wear OS / Apple Watch), reading the watch's built-in IMU sensors over BLE.
+
+### 📊 App & UX
+
+- [ ] Workout history & progress charts
 
 ---
 
-## 📄 Lisans
+## 🛠️ Technical Notes
 
-Bu proje [MIT Lisansı](LICENSE) altında dağıtılmaktadır.
+> **On-Chip Processing Decision:** Raw sensor data is filtered directly on the ESP32 rather than being streamed raw over Bluetooth. This design choice eliminates potential UI lag at its source.
+
+> **False Positive Risk:** The current 4-class model may forcefully map unrecognized objects to one of the 4 equipment classes. Adding a negative class in the next phase is planned to address this.
+
+---
+
+## 📄 License
+
+This project is distributed under the [Apache 2.0 License](LICENSE).
