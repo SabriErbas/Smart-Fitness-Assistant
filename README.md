@@ -106,7 +106,7 @@ Sensors → ESP32-S3 (On-Chip Filtering) → BLE 5.0 → Android App → Real-Ti
 ```bash
 # Clone the repository
 git clone https://github.com/SabriErbas/Smart-Fitness-Trainer.git
-cd smart-fitness-trainer
+cd Smart-Fitness-Trainer
 
 # Build debug APK
 ./gradlew clean assembleDebug
